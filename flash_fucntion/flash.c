@@ -7,6 +7,7 @@
 //static void deleteBuffer16(uint16_t* data, uint16_t _LENGTH_);
 static void deleteBuffer32(uint32_t* data, uint16_t _LENGTH_);
 
+
 //______________________________________________________________________________________________________
 
 
@@ -21,8 +22,8 @@ static void deleteBuffer32(uint32_t* data, uint16_t _LENGTH_);
 #define ADDR_FLASH_SECTOR_7    ((uint32_t)0x08060000) /* Base @ of Sector 7, 128 Kbytes */
 #define ADDR_FLASH_SECTOR_8    ((uint32_t)0x08080000) /* Base @ of Sector 8, 128 Kbytes */
 #define ADDR_FLASH_SECTOR_9    ((uint32_t)0x080A0000) /* Base @ of Sector 9, 128 Kbytes */
-#define ADDR_FLASH_SECTOR_10    ((uint32_t)0x080C0000) /* Base @ of Sector 10, 128 Kbytes */
-#define ADDR_FLASH_SECTOR_11    ((uint32_t)0x080E0000) /* Base @ of Sector 11, 128 Kbytes */
+#define ADDR_FLASH_SECTOR_10   ((uint32_t)0x080C0000) /* Base @ of Sector 10, 128 Kbytes */
+#define ADDR_FLASH_SECTOR_11   ((uint32_t)0x080E0000) /* Base @ of Sector 11, 128 Kbytes */
 /**
  * @brief Gets the sector of a given address
  * @param None
@@ -172,7 +173,7 @@ void Flash_Erase(uint32_t addr, uint32_t numberSectorToErase)
 	EraseInitStruct.VoltageRange = FLASH_VOLTAGE_RANGE_3;
 	if(HAL_FLASHEx_Erase(&EraseInitStruct, &SectorError) != HAL_OK)
 	{
-	/* Xảy ra lỗi tròn khi xóa Sector sẽ cần thêm một số code để xử lý lỗi này SectorError sẽ chứa sector bị lỗi,và sau đó để biết mã lỗi trên sector này bạn cần gọi hàm 'HAL_FLASH_GetError()'*/
+	/* Xảy ra lỗi trong khi xóa Sector sẽ cần thêm một số code để xử lý lỗi này SectorError sẽ chứa sector bị lỗi,và sau đó để biết mã lỗi trên sector này bạn cần gọi hàm 'HAL_FLASH_GetError()'*/
 	/* FLASH_ErrorTypeDef errorcode = HAL_FLASH_GetError(); */
 		Error_Handler();
 	}
@@ -208,17 +209,9 @@ void Flash_Read_Array_32bit(uint32_t* _Array_DATA_, uint32_t _ADDRESS_DATA_, uin
 uint8_t Flash_Write_Uin32t(uint32_t _DATA_, uint32_t _ADDRESS_DATA_)
 {
 
-	Flash_Erase(_ADDRESS_DATA_, 1);
+//	Flash_Erase(_ADDRESS_DATA_, 1);
 	HAL_FLASH_Unlock();
 	HAL_FLASH_Program (FLASH_TYPEPROGRAM_WORD, _ADDRESS_DATA_, _DATA_);
-//	SET_BIT(FLASH->CR, FLASH_CR_PG);
-//	while((FLASH->SR&FLASH_SR_BSY)){};
-//	*(__IO uint16_t*)(_ADDRESS_DATA_) = (uint16_t)(_DATA_ & 0xFFFF) ;
-//				while((FLASH->SR&FLASH_SR_BSY)){};
-//	*(__IO uint16_t*)(_ADDRESS_DATA_ + 2U) = (uint16_t)((_DATA_ >> 16U) & 0xFFFF);
-//
-//	while((FLASH->SR&FLASH_SR_BSY)){};
-//	 CLEAR_BIT(FLASH->CR , FLASH_CR_PG);
 	HAL_FLASH_Lock();
 	uint32_t read_back = Flash_Read_Uint (_ADDRESS_DATA_);
 	if (read_back == _DATA_)
@@ -232,10 +225,12 @@ uint8_t Flash_Write_Uin32t(uint32_t _DATA_, uint32_t _ADDRESS_DATA_)
 }
 uint8_t Flash_Write_Array_32bit(uint32_t* _Array_DATA_, uint32_t _ADDRESS_DATA_, uint32_t _LENGTH_)
 {
+	HAL_FLASH_Unlock();
 	for(uint32_t i = 0; i < _LENGTH_; i++)
 	{
-		HAL_FLASH_Program (FLASH_TYPEPROGRAM_WORD, _ADDRESS_DATA_, _Array_DATA_[i]);
+		HAL_FLASH_Program (FLASH_TYPEPROGRAM_WORD, _ADDRESS_DATA_ * i * sizeof (uint32_t), _Array_DATA_[i]);
 	}
+	HAL_FLASH_Lock();
 	uint32_t Array_To_Check [_LENGTH_];// Creat a array to Check Back
 	Flash_Read_Array_32bit (Array_To_Check, _ADDRESS_DATA_, _LENGTH_);
 	if (memcmp (Array_To_Check, _Array_DATA_, _LENGTH_) == 0)

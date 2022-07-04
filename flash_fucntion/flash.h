@@ -37,3 +37,4 @@ int32_t    Uint_to_Int_Convert(int32_t _DATA_);
 void       Uint_to_Int_16bit_Array_Convert(uint16_t* _DATA_S, int16_t* _DATA_D_, uint16_t _LENGTH_);
 void       Uint_to_Int_32bit_Array_Convert(uint32_t* _DATA_S, int32_t* _DATA_D_, uint16_t _LENGTH_);
 
+uint32_t GetSector(uint32_t Address);
