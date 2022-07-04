@@ -106,5 +106,6 @@ tinyusb-master/src/portable/ti/msp430x5xx \
 tinyusb-master/src/portable/valentyusb/eptri \
 tinyusb-master/src \
 u8g2 \
+update_firmware \
 utilities \
 

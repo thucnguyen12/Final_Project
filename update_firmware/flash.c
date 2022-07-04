@@ -207,17 +207,10 @@ void Flash_Read_Array_32bit(uint32_t* _Array_DATA_, uint32_t _ADDRESS_DATA_, uin
 uint8_t Flash_Write_Uin32t(uint32_t _DATA_, uint32_t _ADDRESS_DATA_)
 {
 
-	Flash_Erase(_ADDRESS_DATA_, 1);
+//	Flash_Erase(_ADDRESS_DATA_, 1);
+	//need erase before write
 	HAL_FLASH_Unlock();
 	HAL_FLASH_Program (FLASH_TYPEPROGRAM_WORD, _ADDRESS_DATA_, _DATA_);
-//	SET_BIT(FLASH->CR, FLASH_CR_PG);
-//	while((FLASH->SR&FLASH_SR_BSY)){};
-//	*(__IO uint16_t*)(_ADDRESS_DATA_) = (uint16_t)(_DATA_ & 0xFFFF) ;
-//				while((FLASH->SR&FLASH_SR_BSY)){};
-//	*(__IO uint16_t*)(_ADDRESS_DATA_ + 2U) = (uint16_t)((_DATA_ >> 16U) & 0xFFFF);
-//
-//	while((FLASH->SR&FLASH_SR_BSY)){};
-//	 CLEAR_BIT(FLASH->CR , FLASH_CR_PG);
 	HAL_FLASH_Lock();
 	uint32_t read_back = Flash_Read_Uint (_ADDRESS_DATA_);
 	if (read_back == _DATA_)
@@ -231,9 +224,11 @@ uint8_t Flash_Write_Uin32t(uint32_t _DATA_, uint32_t _ADDRESS_DATA_)
 }
 uint8_t Flash_Write_Array_32bit(uint32_t* _Array_DATA_, uint32_t _ADDRESS_DATA_, uint32_t _LENGTH_)
 {
-	uint8_t sector_to_erase = (GetSector (_ADDRESS_DATA_ + _LENGTH_) - GetSector(_ADDRESS_DATA_));
-	sector_to_erase += 1;
-	Flash_Erase(_ADDRESS_DATA_, sector_to_erase);
+//	uint8_t sector_to_erase = (GetSector (_ADDRESS_DATA_ + _LENGTH_) - GetSector(_ADDRESS_DATA_));
+//	sector_to_erase += 1;
+//	Flash_Erase(_ADDRESS_DATA_, sector_to_erase);
+
+	// Need erase before write
 	HAL_FLASH_Unlock();
 	for(uint32_t i = 0; i < _LENGTH_; i++)
 	{

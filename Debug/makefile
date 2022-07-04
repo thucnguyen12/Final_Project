@@ -10,6 +10,7 @@ RM := rm -rf
 # All of the sources participating in the build are defined here
 -include sources.mk
 -include utilities/subdir.mk
+-include update_firmware/subdir.mk
 -include u8g2/subdir.mk
 -include tinyusb-master/src/portable/valentyusb/eptri/subdir.mk
 -include tinyusb-master/src/portable/ti/msp430x5xx/subdir.mk

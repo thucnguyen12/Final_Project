@@ -341,4 +341,6 @@
 "./u8g2/u8x8_string.o"
 "./u8g2/u8x8_u16toa.o"
 "./u8g2/u8x8_u8toa.o"
+"./update_firmware/app_update.o"
+"./update_firmware/flash.o"
 "./utilities/utilities.o"

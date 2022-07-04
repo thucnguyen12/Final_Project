@@ -67,6 +67,8 @@
 #include "app_drv_spi.h"
 #include "u8g2.h"
 #include "indicator.h"
+#include "flash.h"
+#include "app_update.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
