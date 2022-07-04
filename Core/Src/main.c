@@ -18,10 +18,23 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-
+#include "cmsis_os.h"
+#include "adc.h"
+#include "dma.h"
+#include "fatfs.h"
+#include "iwdg.h"
+#include "lwip.h"
+#include "rtc.h"
+#include "spi.h"
+#include "usart.h"
+#include "usb_device.h"
+#include "gpio.h"
+#include "indicator.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "flash.h"
+#include <stdbool.h>
+#include "app_debug.h"
+#include "Segger_RTT.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -32,84 +45,33 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 /* USER CODE END PD */
-#define APP_ADDR 0x08040000
-#define OTA_ADDR 0x08020000
-#define UPDATE_CHECK_ADDR 0x0801FC00
-#define CHECK_UPDATE_VALUE 0xAAAAAAAA
-#define SIZE_OF_FIRM_ADDR 0x0801FCFF
+
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
- CRC_HandleTypeDef hcrc;
 
 /* USER CODE BEGIN PV */
-uint32_t check_update_value;
-uint32_t code_data_temp;
+uint16_t toggle_100_ms = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
-static void MX_GPIO_Init(void);
-static void MX_CRC_Init(void);
+void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
+
+uint32_t sys_get_ms(void);
+bool lock_debug(bool lock, uint32_t timeout_ms);
+uint32_t rtt_tx(const void *buffer, uint32_t size);
+static SemaphoreHandle_t m_lock_debug;
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-void update_firmware (void)
-{
-	uint32_t size_of_firmware = Flash_Read_Uint (SIZE_OF_FIRM_ADDR);
-	uint32_t word_to_write = size_of_firmware / 4;
-	uint32_t word_wrote = 0;
-	uint32_t word_temp[1024];
-	while (word_wrote < word_to_write)
-	{
-		Flash_Read_Array_32bit (word_temp, OTA_ADDR + word_wrote * sizeof (word_temp), sizeof (word_temp));
-		if (Flash_Write_Array_32bit (word_temp, APP_ADDR + word_wrote * sizeof (word_temp), sizeof (word_temp)) != 1)
-		{
-			Error_Handler();
-		}
-		word_wrote += 1024;
-	}
-	if (size_of_firmware % 4)
-	{
-//		Flash_Read_Array_32bit (word_temp, OTA_ADDR + word_wrote * sizeof (word_temp));
-		if ((size_of_firmware % 4) == 1)
-		{
-			uint32_t the_rest_word = Flash_Read_Uint (OTA_ADDR + word_wrote * sizeof (word_temp));
-			the_rest_word |= 0x00FFFFFF;
-			if (Flash_Write_Uin32t (the_rest_word, APP_ADDR + word_wrote * sizeof (word_temp)))
-			{
-				Error_Handler();
-			}
-		}
-		else if ((size_of_firmware % 4) == 2)
-		{
-			uint32_t the_rest_word = Flash_Read_Uint (OTA_ADDR + word_wrote * sizeof (word_temp));
-			the_rest_word |= 0x0000FFFF;
-			if (Flash_Write_Uin32t (the_rest_word, APP_ADDR + word_wrote * sizeof (word_temp)))
-			{
-				Error_Handler();
-			}
-		}
-		else if ((size_of_firmware % 4) == 3)
-		{
-			uint32_t the_rest_word = Flash_Read_Uint (OTA_ADDR + word_wrote * sizeof (word_temp));
-			the_rest_word |= 0x000000FF;
-			if (Flash_Write_Uin32t (the_rest_word, APP_ADDR + word_wrote * sizeof (word_temp)))
-			{
-				Error_Handler();
-			}
-			the_rest_word = the_rest_word << 16;
-		}
-	}
-//	Flash_Erase (UPDATE_CHECK_ADDR, 1);
-	Flash_Write_Uin32t (0xFFFFFFFF, UPDATE_CHECK_ADDR);
-}
+
 /* USER CODE END 0 */
 
 /**
@@ -119,7 +81,7 @@ void update_firmware (void)
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+  	uwTickPrio = 0;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -140,19 +102,29 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_CRC_Init();
+  MX_DMA_Init();
+  MX_IWDG_Init();
+  MX_SPI3_Init();
+  MX_ADC1_Init();
+  MX_USART1_UART_Init();
+//  MX_FATFS_Init();
+//  MX_USART3_UART_Init();
+  MX_USART6_UART_Init();
+  MX_RTC_Init();
   /* USER CODE BEGIN 2 */
-//  check_update_value = Flash_Read_Uint (UPDATE_CHECK_ADDR);
-  if (check_update_value == CHECK_UPDATE_VALUE)
-  {
-//	  update_firmware ()
-  }
-  else
-  {
-	  //jumpto main
-  }
+  m_lock_debug = xSemaphoreCreateMutex();
+  xSemaphoreGive(m_lock_debug);
+  app_debug_init(sys_get_ms, lock_debug);
+//  app_debug_register_callback_print(rtt_tx);
   /* USER CODE END 2 */
 
+  /* Call init function for freertos objects (in freertos.c) */
+  MX_FREERTOS_Init();
+
+  /* Start scheduler */
+  osKernelStart();
+
+  /* We should never get here as control is now taken by the scheduler */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
@@ -172,18 +144,20 @@ void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
 
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLM = 8;
   RCC_OscInitStruct.PLL.PLLN = 240;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
-  RCC_OscInitStruct.PLL.PLLQ = 4;
+  RCC_OscInitStruct.PLL.PLLQ = 5;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -202,49 +176,32 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-}
-
-/**
-  * @brief CRC Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_CRC_Init(void)
-{
-
-  /* USER CODE BEGIN CRC_Init 0 */
-
-  /* USER CODE END CRC_Init 0 */
-
-  /* USER CODE BEGIN CRC_Init 1 */
-
-  /* USER CODE END CRC_Init 1 */
-  hcrc.Instance = CRC;
-  if (HAL_CRC_Init(&hcrc) != HAL_OK)
+  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_RTC;
+  PeriphClkInitStruct.RTCClockSelection = RCC_RTCCLKSOURCE_LSI;
+  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN CRC_Init 2 */
-
-  /* USER CODE END CRC_Init 2 */
-
-}
-
-/**
-  * @brief GPIO Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_GPIO_Init(void)
-{
-
-  /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOH_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
-
 }
 
 /* USER CODE BEGIN 4 */
+
+uint32_t sys_get_ms(void)
+{
+    return HAL_GetTick();
+}
+
+bool lock_debug(bool lock, uint32_t timeout_ms)
+{
+	if (lock)
+		return xSemaphoreTake(m_lock_debug, timeout_ms);
+	xSemaphoreGive(m_lock_debug);
+	return true;
+}
+uint32_t rtt_tx(const void *buffer, uint32_t size)
+{
+    return SEGGER_RTT_Write(0, buffer, size);
+}
 
 /* USER CODE END 4 */
 
@@ -265,7 +222,19 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     HAL_IncTick();
   }
   /* USER CODE BEGIN Callback 1 */
-
+  indicator_tick();
+  toggle_100_ms++;
+  HAL_GPIO_TogglePin (WDI_GPIO_Port, WDI_Pin);
+//  HAL_GPIO_WritePin (PRE_PW_GPIO_Port, PRE_PW_Pin,1);
+  if (toggle_100_ms == 100)
+    {
+  	  toggle_100_ms = 0;
+  	  HAL_GPIO_TogglePin (BUTTON_GPIO_Port, BUTTON_Pin);
+  	  HAL_GPIO_TogglePin (MAIN_PW_GPIO_Port, MAIN_PW_Pin);
+  	  HAL_GPIO_TogglePin (PRE_PW_GPIO_Port, PRE_PW_Pin);
+  	  HAL_GPIO_TogglePin (ALARM_IN_GPIO_Port, ALARM_IN_Pin);
+  	  HAL_GPIO_TogglePin (FAULT_IN_GPIO_Port, FAULT_IN_Pin);
+    }
   /* USER CODE END Callback 1 */
 }
 
@@ -280,7 +249,6 @@ void Error_Handler(void)
   __disable_irq();
   while (1)
   {
-
   }
   /* USER CODE END Error_Handler_Debug */
 }
@@ -296,6 +264,7 @@ void Error_Handler(void)
 void assert_failed(uint8_t *file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
+	Error_Handler();
   /* User can add his own implementation to report the file name and line number,
      ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
   /* USER CODE END 6 */
