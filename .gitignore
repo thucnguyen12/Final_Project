@@ -15,3 +15,7 @@ Project/Keil_project/list
 Project/Keil_project/output
 *.huybk
 *.launch
+*.o
+*.d
+*.mk
+Debug

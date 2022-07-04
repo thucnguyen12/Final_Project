@@ -15,6 +15,7 @@
 #define _PAGE_118_ 		 	((uint32_t)0x0801D802)
 
 extern __IO uint32_t uwTick;
+uint32_t GetSector(uint32_t Address);
 // __ERASE_
 void Flash_Erase(uint32_t addr, uint32_t numberSectorToErase);
 //__WRITE__
