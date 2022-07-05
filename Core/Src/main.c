@@ -119,6 +119,12 @@ int main(void)
   if (check_update_value == CHECK_UPDATE_VALUE)
   {
 	  update_firmware ();
+
+	  HAL_RCC_DeInit();
+	  SysTick->CTRL = 0;
+	  SysTick->LOAD = 0;
+	  SysTick->VAL = 0;
+	  SYSCFG->MEMRMP = 0x01; //choose the flash memory
 	  __disable_irq();
 	  jump_to_app = (jump_func)(*(volatile unsigned int *)(APP_ADDR + 4));
 	  __set_MSP(*(volatile unsigned int*)APP_ADDR);
@@ -127,6 +133,12 @@ int main(void)
   }
   else
   {
+
+	  HAL_RCC_DeInit();
+	  SysTick->CTRL = 0;
+	  SysTick->LOAD = 0;
+	  SysTick->VAL = 0;
+	  SYSCFG->MEMRMP = 0x01; //choose the flash memory
 	  __disable_irq();
 	  jump_to_app = (jump_func)(*(volatile unsigned int *)(APP_ADDR + 4));
 	  __set_MSP(*(volatile unsigned int*)APP_ADDR);
@@ -279,7 +291,6 @@ void update_firmware (void)
 			the_rest_word = the_rest_word << 16;
 		}
 	}
-#warning "need fix that choose a sector to contain the information of file"uint32_t GetSector(uint32_t Address);
 	Flash_Write_Uin32t (0xFFFFFFFF, UPDATE_CHECK_ADDR);
 }
 /* USER CODE END 4 */
