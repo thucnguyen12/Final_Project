@@ -202,7 +202,7 @@ void Flash_Read_Array_32bit(uint32_t* _Array_DATA_, uint32_t _ADDRESS_DATA_, uin
 	deleteBuffer32(_Array_DATA_,_LENGTH_);
 	for(uint16_t i = 0; i < _LENGTH_; i++)
 	{
-		_Array_DATA_[i] = Flash_Read_Uint (_ADDRESS_DATA_ + i);
+		_Array_DATA_[i] = Flash_Read_Uint (_ADDRESS_DATA_ + i * sizeof (uint32_t));
 	}
 }
 
@@ -228,7 +228,7 @@ uint8_t Flash_Write_Array_32bit(uint32_t* _Array_DATA_, uint32_t _ADDRESS_DATA_,
 	HAL_FLASH_Unlock();
 	for(uint32_t i = 0; i < _LENGTH_; i++)
 	{
-		HAL_FLASH_Program (FLASH_TYPEPROGRAM_WORD, _ADDRESS_DATA_ * i * sizeof (uint32_t), _Array_DATA_[i]);
+		HAL_FLASH_Program (FLASH_TYPEPROGRAM_WORD, _ADDRESS_DATA_ + i * sizeof (uint32_t), _Array_DATA_[i]);
 	}
 	HAL_FLASH_Lock();
 	uint32_t Array_To_Check [_LENGTH_];// Creat a array to Check Back

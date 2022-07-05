@@ -32,11 +32,11 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 /* USER CODE END PD */
-#define APP_ADDR 0x08040000
-#define OTA_ADDR 0x08020000
-#define UPDATE_CHECK_ADDR 0x0801FC00
+#define APP_ADDR 0x08060000 //sector 7
+#define OTA_ADDR 0x08020000 //sector 5
+#define UPDATE_CHECK_ADDR 0x08008000 //sector 2
 #define CHECK_UPDATE_VALUE 0xAAAAAAAA
-#define SIZE_OF_FIRM_ADDR 0x0801FCFF
+#define SIZE_OF_FIRM_ADDR 0x0800C000 // sector 3
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 
@@ -96,6 +96,25 @@ int main(void)
   MX_GPIO_Init();
   MX_CRC_Init();
   /* USER CODE BEGIN 2 */
+#if 0
+  //test flash
+  uint32_t test_temp[12] = {1,2,3,4,5,6,7,8,9,1,2,3};
+  uint32_t word_wrote = 0;
+  uint32_t word_to_write = 12;
+  uint32_t word_temp[3];
+  Flash_Erase (UPDATE_CHECK_ADDR, 1);
+  Flash_Erase (APP_ADDR, 1);
+  Flash_Write_Array_32bit (test_temp, UPDATE_CHECK_ADDR, 12);
+	while (word_wrote < word_to_write)
+	{
+		Flash_Read_Array_32bit (word_temp, UPDATE_CHECK_ADDR + word_wrote * 4, 3);
+		if (Flash_Write_Array_32bit (word_temp, APP_ADDR + word_wrote * 4, 3) != 1)
+		{
+			Error_Handler();
+		}
+		word_wrote += 3;
+	}
+#endif
 
   if (check_update_value == CHECK_UPDATE_VALUE)
   {
@@ -104,6 +123,7 @@ int main(void)
 	  jump_to_app = (jump_func)(*(volatile unsigned int *)(APP_ADDR + 4));
 	  __set_MSP(*(volatile unsigned int*)APP_ADDR);
 	  jump_to_app();
+	  while (1);
   }
   else
   {
@@ -111,6 +131,7 @@ int main(void)
 	  jump_to_app = (jump_func)(*(volatile unsigned int *)(APP_ADDR + 4));
 	  __set_MSP(*(volatile unsigned int*)APP_ADDR);
 	  jump_to_app();
+	  while (1);
   }
   /* USER CODE END 2 */
 
@@ -218,8 +239,8 @@ void update_firmware (void)
 	while (word_wrote < word_to_write)
 	{
 
-		Flash_Read_Array_32bit (word_temp, OTA_ADDR + word_wrote * sizeof (word_temp), sizeof (word_temp));
-		if (Flash_Write_Array_32bit (word_temp, APP_ADDR + word_wrote * sizeof (word_temp), sizeof (word_temp)) != 1)
+		Flash_Read_Array_32bit (word_temp, OTA_ADDR + word_wrote * 4, 1024);
+		if (Flash_Write_Array_32bit (word_temp, APP_ADDR + word_wrote * 4, 1024) != 1)
 		{
 			Error_Handler();
 		}
@@ -231,27 +252,27 @@ void update_firmware (void)
 		//flash the rest of file
 		if ((size_of_firmware % 4) == 1)
 		{
-			uint32_t the_rest_word = Flash_Read_Uint (OTA_ADDR + word_wrote * sizeof (word_temp));
+			uint32_t the_rest_word = Flash_Read_Uint (OTA_ADDR + word_wrote * 4);
 			the_rest_word |= 0x00FFFFFF;
-			if (Flash_Write_Uin32t (the_rest_word, APP_ADDR + word_wrote * sizeof (word_temp)))
+			if (Flash_Write_Uin32t (the_rest_word, APP_ADDR + word_wrote * 4))
 			{
 				Error_Handler();
 			}
 		}
 		else if ((size_of_firmware % 4) == 2)
 		{
-			uint32_t the_rest_word = Flash_Read_Uint (OTA_ADDR + word_wrote * sizeof (word_temp));
+			uint32_t the_rest_word = Flash_Read_Uint (OTA_ADDR + word_wrote * 4);
 			the_rest_word |= 0x0000FFFF;
-			if (Flash_Write_Uin32t (the_rest_word, APP_ADDR + word_wrote * sizeof (word_temp)))
+			if (Flash_Write_Uin32t (the_rest_word, APP_ADDR + word_wrote * 4))
 			{
 				Error_Handler();
 			}
 		}
 		else if ((size_of_firmware % 4) == 3)
 		{
-			uint32_t the_rest_word = Flash_Read_Uint (OTA_ADDR + word_wrote * sizeof (word_temp));
+			uint32_t the_rest_word = Flash_Read_Uint (OTA_ADDR + word_wrote * 4);
 			the_rest_word |= 0x000000FF;
-			if (Flash_Write_Uin32t (the_rest_word, APP_ADDR + word_wrote * sizeof (word_temp)))
+			if (Flash_Write_Uin32t (the_rest_word, APP_ADDR + word_wrote * 4))
 			{
 				Error_Handler();
 			}
