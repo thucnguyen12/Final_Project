@@ -54,11 +54,11 @@ void poll_data_to_process_flash (uint8_t* buff, uint32_t len)
 	}
 	// find start update string
 
-	if (strstr ((char *)ringbuffer_data_to_flash, "start update:")
+	if (strstr ((char *)ringbuffer_data_to_flash, "start Upload\r\n")
 				&& (in_flash_process == false))
 	{
 		in_flash_process = true;
-		DEBUG_RAW ("OK TO UPDATE\r\n");
+		DEBUG_RAW ("OK to Update\r\n");
 		memset (buff_data_to_write_to_flash, 0, sizeof(buff_data_to_write_to_flash));
 	}
 	//ensure that will found the string before receive
@@ -81,9 +81,16 @@ void poll_data_to_process_flash (uint8_t* buff, uint32_t len)
 				{
 					calculated_crc += (uint32_t) buff_data_to_write_to_flash [i];
 				}
-				Flash_Write_Array_32bit ((uint32_t*)buff_data_to_write_to_flash, OTA_ADDR, 124); //flash 124 word because 1 word contain information
-				word_wrote += 124;
-				memset (buff_data_to_write_to_flash, 0, sizeof(buff_data_to_write_to_flash));
+				if (Flash_Write_Array_32bit ((uint32_t*)buff_data_to_write_to_flash, OTA_ADDR, 124))
+				{//flash 124 word because 1 word contain information
+					word_wrote += 124;
+					memset (buff_data_to_write_to_flash, 0, sizeof(buff_data_to_write_to_flash));
+					DEBUG_RAW ("Read OK\r\n");
+				}
+				else
+				{
+					DEBUG_RAW ("Write Fail\r\n");
+				}
 			}
 			else
 			{
@@ -95,14 +102,28 @@ void poll_data_to_process_flash (uint8_t* buff, uint32_t len)
 					{
 						calculated_crc += (uint32_t) buff_data_to_write_to_flash [i];
 					}
-					Flash_Write_Array_32bit ((uint32_t*)buff_data_to_write_to_flash, OTA_ADDR + word_wrote * 4, 128);
-					word_wrote += 128;
-					memset (buff_data_to_write_to_flash, 0, sizeof(buff_data_to_write_to_flash));
+					if (Flash_Write_Array_32bit ((uint32_t*)buff_data_to_write_to_flash, OTA_ADDR + word_wrote * 4, 128))
+					{
+						word_wrote += 128;
+						memset (buff_data_to_write_to_flash, 0, sizeof(buff_data_to_write_to_flash));
+						DEBUG_RAW ("Read OK\r\n");
+					}
+					else
+					{
+						DEBUG_RAW ("Write Fail\r\n");
+					}
 				}
 				else
 				{
 					// would reach here  when word_wrote == size_of_firm / 4
-					Flash_Write_Array_32bit ((uint32_t*)buff_data_to_write_to_flash, OTA_ADDR + word_wrote * 4, 2);
+					if (Flash_Write_Array_32bit ((uint32_t*)buff_data_to_write_to_flash, OTA_ADDR + word_wrote * 4, 2))
+					{
+						DEBUG_RAW ("Read OK\r\n");
+					}
+					else
+					{
+						DEBUG_RAW ("Write Fail\r\n");
+					}
 					if ((size_of_firm % 4) == 1)
 					{
 						for (uint16_t i = 0; i < 4; i++)
