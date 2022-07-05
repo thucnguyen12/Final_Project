@@ -82,6 +82,7 @@ int main(void)
 {
   /* USER CODE BEGIN 1 */
   	uwTickPrio = 0;
+  	__enable_irq();
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
