@@ -32,8 +32,8 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 /* USER CODE END PD */
-#define APP_ADDR 0x08060000 //sector 7
-#define OTA_ADDR 0x08020000 //sector 5
+#define APP_ADDR 0x08040000 //sector 6
+#define OTA_ADDR 0x08080000 //sector 8
 #define UPDATE_CHECK_ADDR 0x08008000 //sector 2
 #define CHECK_UPDATE_VALUE 0xAAAAAAAA
 #define SIZE_OF_FIRM_ADDR 0x0800C000 // sector 3
