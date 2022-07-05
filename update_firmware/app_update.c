@@ -53,6 +53,7 @@ void poll_data_to_process_flash (uint8_t* buff, uint32_t len)
 		lwrb_read (&lwrb_data, buff_data_to_write_to_flash, sizeof (buff_data_to_write_to_flash));
 	}
 	// find start update string
+
 	if (strstr ((char *)ringbuffer_data_to_flash, "start update:")
 				&& (in_flash_process == false))
 	{
@@ -60,7 +61,7 @@ void poll_data_to_process_flash (uint8_t* buff, uint32_t len)
 		DEBUG_RAW ("OK TO UPDATE\r\n");
 		memset (buff_data_to_write_to_flash, 0, sizeof(buff_data_to_write_to_flash));
 	}
-
+	//ensure that will found the string before receive
 	if (lwrb_get_full (&lwrb_data) > 512)
 	{
 		lwrb_read (&lwrb_data, buff_data_to_write_to_flash, sizeof (buff_data_to_write_to_flash));
