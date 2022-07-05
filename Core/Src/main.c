@@ -125,6 +125,10 @@ int main(void)
 	  SysTick->LOAD = 0;
 	  SysTick->VAL = 0;
 	  SYSCFG->MEMRMP = 0x01; //choose the flash memory
+	  HAL_DeInit();
+	  SCB->SHCSR &= ~( SCB_SHCSR_USGFAULTENA_Msk |\
+	  SCB_SHCSR_BUSFAULTENA_Msk | \
+	  SCB_SHCSR_MEMFAULTENA_Msk ) ;
 	  __disable_irq();
 	  jump_to_app = (jump_func)(*(volatile unsigned int *)(APP_ADDR + 4));
 	  __set_MSP(*(volatile unsigned int*)APP_ADDR);
@@ -139,6 +143,10 @@ int main(void)
 	  SysTick->LOAD = 0;
 	  SysTick->VAL = 0;
 	  SYSCFG->MEMRMP = 0x01; //choose the flash memory
+	  HAL_DeInit();
+	  SCB->SHCSR &= ~( SCB_SHCSR_USGFAULTENA_Msk |\
+	  SCB_SHCSR_BUSFAULTENA_Msk | \
+	  SCB_SHCSR_MEMFAULTENA_Msk ) ;
 	  __disable_irq();
 	  jump_to_app = (jump_func)(*(volatile unsigned int *)(APP_ADDR + 4));
 	  __set_MSP(*(volatile unsigned int*)APP_ADDR);
