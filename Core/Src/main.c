@@ -115,6 +115,7 @@ int main(void)
 		word_wrote += 3;
 	}
 #endif
+
 	check_update_value = Flash_Read_Uint (UPDATE_CHECK_ADDR);
 	if (check_update_value == CHECK_UPDATE_VALUE)
 	{
@@ -299,7 +300,7 @@ void update_firmware (void)
 			the_rest_word = the_rest_word << 16;
 		}
 	}
-	Flash_Write_Uin32t (0xFFFFFFFF, UPDATE_CHECK_ADDR);
+	Flash_Erase (UPDATE_CHECK_ADDR, 1);
 }
 /* USER CODE END 4 */
 
