@@ -2586,6 +2586,7 @@ void tusb_read_callback(void)
 {
 	while (1)
 	{
+		HAL_IWDG_Refresh(&hiwdg);
 		uint8_t usb_ch;
 		uint32_t count = tud_cdc_read(&usb_ch, 1);
 		if (count)
