@@ -91,7 +91,9 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+  SCB->SHCSR  |= SCB_SHCSR_USGFAULTENA_Msk
+		  	  | SCB_SHCSR_BUSFAULTENA_Msk
+			  | SCB_SHCSR_MEMFAULTENA_Msk;
   /* USER CODE END Init */
 
   /* Configure the system clock */
