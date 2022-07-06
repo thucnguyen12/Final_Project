@@ -115,9 +115,9 @@ int main(void)
 		word_wrote += 3;
 	}
 #endif
-
-  if (check_update_value == CHECK_UPDATE_VALUE)
-  {
+	check_update_value = Flash_Read_Uint (UPDATE_CHECK_ADDR);
+	if (check_update_value == CHECK_UPDATE_VALUE)
+	{
 	  update_firmware ();
 
 	  HAL_RCC_DeInit();
@@ -134,9 +134,9 @@ int main(void)
 	  __set_MSP(*(volatile unsigned int*)APP_ADDR);
 	  jump_to_app();
 	  while (1);
-  }
-  else
-  {
+	}
+	else
+	{
 
 	  HAL_RCC_DeInit();
 	  SysTick->CTRL = 0;
@@ -152,7 +152,7 @@ int main(void)
 	  __set_MSP(*(volatile unsigned int*)APP_ADDR);
 	  jump_to_app();
 	  while (1);
-  }
+	}
   /* USER CODE END 2 */
 
   /* Infinite loop */
