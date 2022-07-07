@@ -111,6 +111,7 @@ DSTATUS USER_initialize (
   /* USER CODE BEGIN INIT */
     Stat = STA_NOINIT;
     storage_flash_initialize();
+    Stat = RES_OK;
     return Stat;
   /* USER CODE END INIT */
 }

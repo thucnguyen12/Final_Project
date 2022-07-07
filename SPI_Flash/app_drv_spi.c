@@ -13,7 +13,7 @@
 
 void app_drv_spi_cs(void *spi, bool level);
 //static SemaphoreHandle_t m_sem_spi = NULL;
-
+uint16_t time_out_poll = 0;
 static bool spi_done_action;
 
 static inline void on_spi_done(void)
@@ -55,11 +55,18 @@ void app_drv_spi_transmit_frame(void *spi, uint8_t *tx_data, uint32_t length)
     if (length && tx_data)
     {
         HAL_SPI_Transmit_DMA(spi, tx_data, length);
-        if (spi_done_action)
+        time_out_poll = 500;
+        while ((spi_done_action == false) && time_out_poll)
         {
         	spi_done_action = false;
+        	time_out_poll--;
+        	if (spi_done_action)
+        	{
+        		spi_done_action = false;
+        		break;
+        	}
         }
-        else
+        if (time_out_poll == 0)
         {
         	Error_Handler();
         }
@@ -72,15 +79,21 @@ void app_drv_spi_receive_frame(void *spi, uint8_t *rx_data, uint32_t length)
     if (length && rx_data)
     {
         HAL_SPI_Receive_DMA(spi, rx_data, length);
-//        xSemaphoreTake(m_sem_spi, portMAX_DELAY);
-        if (spi_done_action)
-		{
-			spi_done_action = false;
-		}
-		else
-		{
-			Error_Handler();
-		}
+        time_out_poll = 500;
+        while ((spi_done_action == false) && time_out_poll)
+        {
+        	spi_done_action = false;
+        	time_out_poll--;
+        	if (spi_done_action)
+        	{
+        		spi_done_action = false;
+        		break;
+        	}
+        }
+        if (time_out_poll == 0)
+        {
+        	Error_Handler();
+        }
     }
 }
 
@@ -89,15 +102,21 @@ void app_drv_spi_transmit_receive_frame(void *spi, uint8_t *tx_data, uint8_t *rx
     if (length && tx_data && rx_data)
     {
         HAL_SPI_TransmitReceive_DMA(spi, tx_data, rx_data, length);
-//        xSemaphoreTake(m_sem_spi, portMAX_DELAY);
-        if (spi_done_action)
-		{
-			spi_done_action = false;
-		}
-		else
-		{
-			Error_Handler();
-		}
+        time_out_poll = 500;
+        while ((spi_done_action == false) && time_out_poll)
+        {
+        	spi_done_action = false;
+        	time_out_poll--;
+        	if (spi_done_action)
+        	{
+        		spi_done_action = false;
+        		break;
+        	}
+        }
+        if (time_out_poll == 0)
+        {
+        	Error_Handler();
+        }
     }
 }
 

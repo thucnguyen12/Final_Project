@@ -159,8 +159,8 @@ int main(void)
 	if (flash_res != FR_OK)
 	{
 		DEBUG_WARN("Mount flash fail\r\n");
-//		flash_res = f_mkfs(USERPath, 1, sizeof gFSWork);
-		flash_res = f_mount(&USERFatFS, USERPath, 1);
+		flash_res = f_mkfs(USERPath, 0, sizeof(gFSWork));
+//		flash_res = f_mount(&USERFatFS, USERPath, 1);
 		if (flash_res == FR_OK)
 		{
 			m_disk_is_mounted = true;
