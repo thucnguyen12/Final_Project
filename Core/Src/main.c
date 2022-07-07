@@ -53,10 +53,10 @@ typedef union
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define APP_ADDR 0x08040000 //sector 6
-#define OTA_ADDR 0x08080000 //sector 8
-#define UPDATE_CHECK_ADDR 0x08008000 //sector 2
-#define CHECK_UPDATE_VALUE 0xAAAAAAAA
-#define SIZE_OF_FIRM_ADDR 0x0800C000 // sector 3
+//#define OTA_ADDR 0x08080000 //sector 8
+//#define UPDATE_CHECK_ADDR 0x08008000 //sector 2
+//#define CHECK_UPDATE_VALUE 0xAAAAAAAA
+//#define SIZE_OF_FIRM_ADDR 0x0800C000 // sector 3
 
 /* USER CODE END PD */
 
@@ -181,7 +181,7 @@ int main(void)
 
 
 	//Check firmware update
-	check_update_value = Flash_Read_Uint (UPDATE_CHECK_ADDR);
+//	check_update_value = Flash_Read_Uint (UPDATE_CHECK_ADDR);
 //	if (check_update_value == CHECK_UPDATE_VALUE)
 	if (fatfs_is_file_or_folder_existed (update_file) == FILE_EXISTED
 		&& m_disk_is_mounted)
