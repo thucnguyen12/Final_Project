@@ -28,12 +28,26 @@
 /* USER CODE BEGIN Includes */
 #include "flash.h"
 #include <stdbool.h>
+#include <string.h>
 #include "app_debug.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+typedef union
+{
+    struct
+    {
+        char header[3];
+        char firmware_version[3];
+        char hardware_version[3];
+        uint32_t firmware_size;         // fw size =  image_size + 16 byte md5, fw excluded header
+        uint8_t release_year;           // From 2000
+        uint8_t release_month;
+        uint8_t release_date;
+    } __attribute__((packed)) name;
+    uint8_t raw[16];
+} __attribute__((packed)) ota_image_header_t;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -43,6 +57,7 @@
 #define UPDATE_CHECK_ADDR 0x08008000 //sector 2
 #define CHECK_UPDATE_VALUE 0xAAAAAAAA
 #define SIZE_OF_FIRM_ADDR 0x0800C000 // sector 3
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -54,8 +69,10 @@
 
 /* USER CODE BEGIN PV */
 uint32_t check_update_value;
-
-
+static const char *update_file = "jig_update.bin";
+//ota_image_header_t update_info;
+ota_image_header_t* update_info_ptr;
+uint8_t info_buff[16];
 /*************************** 	  FLASH DISK VARIABLE        *************************************************************/
 BYTE gFSWork[_MAX_SS];
 UINT br, bw;   // File read/write count
@@ -153,14 +170,24 @@ int main(void)
 		m_disk_is_mounted = true;
 		DEBUG_INFO("Mount flash ok\r\n");
 	}
+	// Set label
+	TCHAR label[32];
+	f_getlabel(USERPath, label, 0);
+	if (strcmp(label, "BSAFE JIG"))
+	{
+		DEBUG_INFO("Set label\r\n");
+		f_setlabel("BSAFE JIG");
+	}
 
 
 	//Check firmware update
 	check_update_value = Flash_Read_Uint (UPDATE_CHECK_ADDR);
-	if (check_update_value == CHECK_UPDATE_VALUE)
+//	if (check_update_value == CHECK_UPDATE_VALUE)
+	if (fatfs_is_file_or_folder_existed (update_file) == FILE_EXISTED
+		&& m_disk_is_mounted)
 	{
 	  update_firmware ();
-
+	  flash_res = f_mount(NULL, USERPath, 1);//unmount before go to app
 	  HAL_RCC_DeInit();
 	  SysTick->CTRL = 0;
 	  SysTick->LOAD = 0;
@@ -178,7 +205,10 @@ int main(void)
 	}
 	else
 	{
-
+	  if (m_disk_is_mounted)
+	  {
+		  flash_res = f_mount(NULL, USERPath, 1);//unmount before go to app
+	  }
 	  HAL_RCC_DeInit();
 	  SysTick->CTRL = 0;
 	  SysTick->LOAD = 0;
@@ -250,57 +280,107 @@ void SystemClock_Config(void)
 /* USER CODE BEGIN 4 */
 void update_firmware (void)
 {
-	uint32_t size_of_firmware = Flash_Read_Uint (SIZE_OF_FIRM_ADDR);
-	uint32_t word_to_write = size_of_firmware / 4; // size_of_firmware count by byte to word (4byte)
-	uint32_t word_wrote = 0;
-	uint32_t word_temp[1024]; //buffer contain data to write to flash
+
+	if (fatfs_read_file (update_file, info_buff, 16))
+	{
+		update_info_ptr = (ota_image_header_t*) info_buff;
+	}
+
+	uint32_t size_of_firmware = update_info_ptr->name.firmware_size;
+//	uint32_t word_to_write = size_of_firmware / 4; // size_of_firmware count by byte to word (4byte)
+//	uint32_t word_wrote = 0;
+//	uint32_t word_temp[1024]; //buffer contain data to write to flash
+	uint32_t byte_wrote;
+	uint8_t update_data [4096];
 	uint8_t sector_to_erase = (GetSector (APP_ADDR + size_of_firmware) - GetSector(APP_ADDR)); //sectors to erase at app addr
 	sector_to_erase += 1;
 	Flash_Erase(APP_ADDR, sector_to_erase); //Erase before write
-	while (word_wrote < word_to_write)
+	uint32_t size_of_update_file = fatfs_get_file_size (update_file);
+	uint32_t crc_value_read;
+	uint32_t crc_calculate = 0;
+	fatfs_read_file_at_pos (update_file, (uint8_t*) &crc_value_read, 4, size_of_update_file - 4);
+	while (byte_wrote < size_of_firmware)
 	{
 
-		Flash_Read_Array_32bit (word_temp, OTA_ADDR + word_wrote * 4, 1024);
-		if (Flash_Write_Array_32bit (word_temp, APP_ADDR + word_wrote * 4, 1024) != 1)
+//		Flash_Read_Array_32bit (word_temp, OTA_ADDR + word_wrote * 4, 1024);
+		memset (update_data, 255, sizeof (update_data));
+		uint32_t byte_read = fatfs_read_file_at_pos (update_file, update_data, sizeof (update_data), 16 + byte_wrote);
+		if (!(byte_read / 4))	// byte read = 0/ 1 /2 / 3
+		{
+			if(byte_read == 0)
+			{
+				break;
+			}
+			if (Flash_Write_Array_32bit ((uint32_t*)update_data, APP_ADDR + byte_wrote, 1) != 1)
+			{
+				Error_Handler();
+			}
+			if (byte_read == 1)
+			{
+				crc_calculate += update_data [0];
+				break;
+			}
+			else if (byte_read == 2)
+			{
+				crc_calculate = crc_calculate + update_data [0]+ update_data [1];
+				break;
+			}
+			else if (byte_read == 3)
+			{
+				crc_calculate = crc_calculate + update_data [0]+ update_data [1]+ update_data [2];
+				break;
+			}
+
+		}
+		if (Flash_Write_Array_32bit ((uint32_t*)update_data, APP_ADDR + byte_wrote, byte_read / 4) != 1)
 		{
 			Error_Handler();
 		}
-		word_wrote += 1024;
+		for (uint32_t i = 0; i < 4096; i++)
+		{
+			crc_calculate += update_data [i];
+		}
+		byte_wrote += 4096;
 	}
-
-	if (size_of_firmware % 4)
+	if (crc_calculate != crc_value_read)
 	{
-		//flash the rest of file
-		if ((size_of_firmware % 4) == 1)
-		{
-			uint32_t the_rest_word = Flash_Read_Uint (OTA_ADDR + word_wrote * 4);
-			the_rest_word |= 0x00FFFFFF;
-			if (Flash_Write_Uin32t (the_rest_word, APP_ADDR + word_wrote * 4))
-			{
-				Error_Handler();
-			}
-		}
-		else if ((size_of_firmware % 4) == 2)
-		{
-			uint32_t the_rest_word = Flash_Read_Uint (OTA_ADDR + word_wrote * 4);
-			the_rest_word |= 0x0000FFFF;
-			if (Flash_Write_Uin32t (the_rest_word, APP_ADDR + word_wrote * 4))
-			{
-				Error_Handler();
-			}
-		}
-		else if ((size_of_firmware % 4) == 3)
-		{
-			uint32_t the_rest_word = Flash_Read_Uint (OTA_ADDR + word_wrote * 4);
-			the_rest_word |= 0x000000FF;
-			if (Flash_Write_Uin32t (the_rest_word, APP_ADDR + word_wrote * 4))
-			{
-				Error_Handler();
-			}
-			the_rest_word = the_rest_word << 16;
-		}
+		NVIC_SystemReset();
 	}
-	Flash_Erase (UPDATE_CHECK_ADDR, 1);
+	fatfs_delete_a_file (update_file); //delete file after update
+
+//	if (size_of_firmware % 4)
+//	{
+//		//flash the rest of file
+//		if ((size_of_firmware % 4) == 1)
+//		{
+//			uint32_t the_rest_word = Flash_Read_Uint (OTA_ADDR + word_wrote * 4);
+//			the_rest_word |= 0x00FFFFFF;
+//			if (Flash_Write_Uin32t (the_rest_word, APP_ADDR + word_wrote * 4))
+//			{
+//				Error_Handler();
+//			}
+//		}
+//		else if ((size_of_firmware % 4) == 2)
+//		{
+//			uint32_t the_rest_word = Flash_Read_Uint (OTA_ADDR + word_wrote * 4);
+//			the_rest_word |= 0x0000FFFF;
+//			if (Flash_Write_Uin32t (the_rest_word, APP_ADDR + word_wrote * 4))
+//			{
+//				Error_Handler();
+//			}
+//		}
+//		else if ((size_of_firmware % 4) == 3)
+//		{
+//			uint32_t the_rest_word = Flash_Read_Uint (OTA_ADDR + word_wrote * 4);
+//			the_rest_word |= 0x000000FF;
+//			if (Flash_Write_Uin32t (the_rest_word, APP_ADDR + word_wrote * 4))
+//			{
+//				Error_Handler();
+//			}
+//			the_rest_word = the_rest_word << 16;
+//		}
+//	}
+//	Flash_Erase (UPDATE_CHECK_ADDR, 1);
 }
 /* USER CODE END 4 */
 
@@ -333,6 +413,7 @@ void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
+	NVIC_SystemReset ();
   __disable_irq();
   while (1)
   {
