@@ -14,22 +14,28 @@ typedef union
     } __attribute__((packed)) name;
     uint8_t raw[16];
 } __attribute__((packed)) ota_image_header_t;
-char info_string [16];
+uint8_t info_buff [16];
 ota_image_header_t  info_of_bin;
-ota_image_header_t* info_of_bin_ptr = &info_of_bin;
+//ota_image_header_t* info_of_bin_ptr = &info_of_bin;
+ota_image_header_t* info_current_version_ptr;
+ota_image_header_t* update_info_ptr;
+static const char *update_file = "jig_update.bin";
 uint8_t ringbuffer_data_to_flash [528];
 uint8_t buff_data_to_write_to_flash [512];
 bool in_flash_process = false;
 bool start_flash_data = false;
+//bool need_update = false;
 uint32_t word_wrote = 0;
 uint32_t read_crc = 0;
 uint32_t calculated_crc = 0;
+#if 0
 static lwrb_t lwrb_data =
 		{
 				.buff = NULL,
 				.r = 0,
 				.w = 0
 		};
+
 void poll_data_to_process_flash (uint8_t* buff, uint32_t len)
 {
 	uint32_t size_of_firm = 0;
@@ -176,5 +182,65 @@ void poll_data_to_process_flash (uint8_t* buff, uint32_t len)
 			memset (buff_data_to_write_to_flash, 0, sizeof(buff_data_to_write_to_flash));
 		}
 
+	}
+}
+#endif
+void check_version_and_update_firmware()
+{
+	if (fatfs_is_file_or_folder_existed (update_file) != FILE_EXISTED)
+	{
+		DEBUG_ERROR ("NO FILE UPDATE OR SOMETHING WENT WRONG\r\n");
+		return;
+	}
+	if (fatfs_read_file (update_file, info_buff, 16))
+	{
+		update_info_ptr = (ota_image_header_t*) info_buff;
+	}
+
+	uint32_t size_of_firmware = update_info_ptr->name.firmware_size;
+	uint32_t info_current_version = Flash_Read_Uint (INFO_OF_FILE_ADDR);
+	uint16_t info_current_version_buff = (uint16_t)info_current_version;
+	info_current_version_ptr = (ota_image_header_t*) &info_current_version_buff;
+	if (memcmp (info_current_version_ptr->name.firmware_version, update_info_ptr->name.firmware_version, 3) == 0)
+	{
+//		need_update = true;
+//	}
+//	else
+//	{
+//		need_update = false;
+		DEBUG_INFO ("VERSION STILL THE SAME, NO NEED UPDATE\r\n");
+		return;
+	}
+	// now need check crc
+	uint32_t size_of_update_file = fatfs_get_file_size (update_file);
+	uint32_t crc_value_read;
+	uint32_t crc_calculate = 0;
+	fatfs_read_file_at_pos (update_file, (uint8_t*) &crc_value_read, 4, size_of_update_file - 4);
+	uint32_t total_byte_read = 0;
+	uint32_t byte_read;
+	uint8_t check_data_buffer [1024];
+	while (total_byte_read < size_of_firmware)
+	{
+		memset (check_data_buffer, 0, sizeof (check_data_buffer));
+		byte_read = fatfs_read_file_at_pos (update_file, check_data_buffer, sizeof (check_data_buffer), 16 + total_byte_read);//skip 16 first byte
+		if (!byte_read)
+		{
+			break;
+		}
+		for (uint16_t i = 0; i < 1024; i++)
+		{
+			crc_calculate += check_data_buffer [i];
+		}
+		total_byte_read += 1024;
+	}
+	if (crc_calculate == crc_value_read)
+	{
+		DEBUG_INFO ("CRC OK PREPARE TO RESET \r\n");
+		NVIC_SystemReset();
+	}
+	else
+	{
+		DEBUG_INFO ("CRC check fail, please retry again\r\n");
+		return;
 	}
 }
