@@ -35,14 +35,17 @@
 /* Includes ------------------------------------------------------------------*/
 #include <string.h>
 #include "ff_gen_drv.h"
-
+#include "app_spi_flash.h"
+#include "app_drv_spi.h"
+#include "spi.h"
+#include "app_debug.h"
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 
 /* Private variables ---------------------------------------------------------*/
 /* Disk status */
 static volatile DSTATUS Stat = STA_NOINIT;
-
+app_flash_drv_t m_spi_flash;
 /* USER CODE END DECL */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -71,6 +74,31 @@ Diskio_drvTypeDef  USER_Driver =
 
 /* Private functions ---------------------------------------------------------*/
 
+static void spi_flash_delay(void *arg, uint32_t ms);
+//static QueueHandle_t m_cmd_queue;
+
+static void spi_flash_delay(void *arg, uint32_t ms)
+{
+    HAL_Delay (ms);
+}
+void storage_flash_initialize(void)
+{
+    app_drv_spi_initialize();
+    m_spi_flash.error = false;
+    m_spi_flash.spi = &hspi3;
+    m_spi_flash.callback.spi_cs = app_drv_spi_cs;
+    m_spi_flash.callback.spi_rx_buffer = app_drv_spi_receive_frame;
+    m_spi_flash.callback.spi_tx_buffer = app_drv_spi_transmit_frame;
+    m_spi_flash.callback.spi_tx_rx = app_drv_spi_transmit_receive_frame;
+    m_spi_flash.callback.spi_tx_byte = app_drv_spi_transmit_byte;
+    m_spi_flash.callback.delay_ms = spi_flash_delay;
+
+    if (app_spi_flash_initialize(&m_spi_flash) == false)
+    {
+        m_spi_flash.error = true;
+        DEBUG_ERROR("SPI flash error\r\n");
+    }
+}
 /**
   * @brief  Initializes a Drive
   * @param  pdrv: Physical drive number (0..)
@@ -82,6 +110,7 @@ DSTATUS USER_initialize (
 {
   /* USER CODE BEGIN INIT */
     Stat = STA_NOINIT;
+    storage_flash_initialize();
     return Stat;
   /* USER CODE END INIT */
 }
@@ -96,7 +125,7 @@ DSTATUS USER_status (
 )
 {
   /* USER CODE BEGIN STATUS */
-    Stat = STA_NOINIT;
+    Stat = RES_OK;
     return Stat;
   /* USER CODE END STATUS */
 }
@@ -117,7 +146,17 @@ DRESULT USER_read (
 )
 {
   /* USER CODE BEGIN READ */
-    return RES_OK;
+	uint32_t i;
+	uint32_t addr = sector * APP_SPI_FLASH_SECTOR_SIZE;
+	DEBUG_VERBOSE("Read data at sector %d to %d\r\n", sector, sector + count);
+	for (i=0; i<count; i++)
+	{
+		app_spi_flash_read_bytes(&m_spi_flash, addr, buff, APP_SPI_FLASH_SECTOR_SIZE);
+		sector++;
+		buff += APP_SPI_FLASH_SECTOR_SIZE;
+		addr += APP_SPI_FLASH_SECTOR_SIZE;
+	}
+	return RES_OK;
   /* USER CODE END READ */
 }
 
@@ -139,6 +178,16 @@ DRESULT USER_write (
 {
   /* USER CODE BEGIN WRITE */
   /* USER CODE HERE */
+	uint32_t i;
+	uint32_t addr = sector * APP_SPI_FLASH_SECTOR_SIZE;
+	for (i=0; i<count ;i++)
+	{
+		app_spi_flash_erase_sector_4k(&m_spi_flash, sector);
+		app_spi_flash_write(&m_spi_flash, addr, (uint8_t *)buff, APP_SPI_FLASH_SECTOR_SIZE);
+		sector++;
+		buff += APP_SPI_FLASH_SECTOR_SIZE;
+		addr += APP_SPI_FLASH_SECTOR_SIZE;
+	}
     return RES_OK;
   /* USER CODE END WRITE */
 }
@@ -160,6 +209,33 @@ DRESULT USER_ioctl (
 {
   /* USER CODE BEGIN IOCTL */
     DRESULT res = RES_ERROR;
+    switch(cmd)
+ 	{
+ 		case CTRL_SYNC :
+ 			res = RES_OK;
+ 			break;
+
+ 		case GET_BLOCK_SIZE:
+ 			*(DWORD*)buff = 65536;
+ 			res = RES_OK;
+ 			break;
+
+
+ 		case GET_SECTOR_SIZE:
+ 			*(DWORD*)buff = APP_SPI_FLASH_SECTOR_SIZE;
+ 			res = RES_OK;
+ 			break;
+
+ 		case GET_SECTOR_COUNT:
+ 			*(DWORD*)buff = m_spi_flash.info.size/APP_SPI_FLASH_SECTOR_SIZE;
+ 			DEBUG_VERBOSE("User diskio sector count %u\r\n", *(DWORD*)buff);
+ 			res = RES_OK;
+ 			break;
+
+ 		default:
+ 			res = RES_PARERR;
+ 			break;
+ 	}
     return res;
   /* USER CODE END IOCTL */
 }

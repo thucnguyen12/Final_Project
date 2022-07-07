@@ -28,6 +28,12 @@
 #include "user_diskio.h" /* defines USER_Driver as external */
 
 /* USER CODE BEGIN Includes */
+ typedef enum
+ {
+ 	FILE_EXISTED,
+ 	FILE_NOT_EXISTED,
+ 	FILE_ERROR
+ } fatfs_file_info_t;
 
 /* USER CODE END Includes */
 
@@ -39,7 +45,11 @@ extern FIL USERFile; /* File object for USER */
 void MX_FATFS_Init(void);
 
 /* USER CODE BEGIN Prototypes */
-
+uint32_t fatfs_read_file(const char *file, uint8_t *data, uint32_t size);
+int32_t fatfs_read_file_at_pos(const char *file, uint8_t *data, uint32_t size, uint32_t pos);
+int32_t fatfs_get_file_size(const char *file);
+void fatfs_delete_a_file (const char * file);
+fatfs_file_info_t fatfs_is_file_or_folder_existed (const char* file);
 /* USER CODE END Prototypes */
 #ifdef __cplusplus
 }

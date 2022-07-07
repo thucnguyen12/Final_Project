@@ -27,6 +27,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "flash.h"
+#include <stdbool.h>
+#include "app_debug.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -52,7 +54,15 @@
 
 /* USER CODE BEGIN PV */
 uint32_t check_update_value;
-uint32_t code_data_temp;
+
+
+/*************************** 	  FLASH DISK VARIABLE        *************************************************************/
+BYTE gFSWork[_MAX_SS];
+UINT br, bw;   // File read/write count
+UINT fbr, fbw; // File read/write count
+FRESULT flash_res;
+bool m_disk_is_mounted = false;
+/***********************************************************************************************************************/
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -121,7 +131,31 @@ int main(void)
 		word_wrote += 3;
 	}
 #endif
+	/// mount flash to use fs
+	flash_res = f_mount(&USERFatFS, USERPath, 1);
+	if (flash_res != FR_OK)
+	{
+		DEBUG_WARN("Mount flash fail\r\n");
+//		flash_res = f_mkfs(USERPath, 1, sizeof gFSWork);
+		flash_res = f_mount(&USERFatFS, USERPath, 1);
+		if (flash_res == FR_OK)
+		{
+			m_disk_is_mounted = true;
+			DEBUG_INFO("format disk and mount again\r\n");
+		}
+		else
+		{
+			DEBUG_ERROR("Mount flash error\r\n");
+		}
+	}
+	else
+	{
+		m_disk_is_mounted = true;
+		DEBUG_INFO("Mount flash ok\r\n");
+	}
 
+
+	//Check firmware update
 	check_update_value = Flash_Read_Uint (UPDATE_CHECK_ADDR);
 	if (check_update_value == CHECK_UPDATE_VALUE)
 	{
