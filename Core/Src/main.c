@@ -30,6 +30,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include "app_debug.h"
+#include "Segger_RTT.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -52,7 +53,7 @@ typedef union
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define APP_ADDR 0x08040000 //sector 6
+#define APP_ADDR 0x08020000 //sector 6
 //#define OTA_ADDR 0x08080000 //sector 8
 //#define UPDATE_CHECK_ADDR 0x08008000 //sector 2
 //#define CHECK_UPDATE_VALUE 0xAAAAAAAA
@@ -85,7 +86,9 @@ bool m_disk_is_mounted = false;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-
+uint32_t sys_get_ms(void);
+//bool lock_debug(bool lock, uint32_t timeout_ms);
+uint32_t rtt_tx(const void *buffer, uint32_t size);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -129,6 +132,9 @@ int main(void)
   MX_SPI3_Init();
   MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
+  //init debug app
+  app_debug_init(sys_get_ms, NULL);
+  app_debug_register_callback_print(rtt_tx);
 #if 0
   //test flash
   uint32_t test_temp[12] = {1,2,3,4,5,6,7,8,9,1,2,3};
@@ -170,16 +176,6 @@ int main(void)
 		m_disk_is_mounted = true;
 		DEBUG_INFO("Mount flash ok\r\n");
 	}
-	// Set label
-	TCHAR label[32];
-	f_getlabel(USERPath, label, 0);
-	if (strcmp(label, "BSAFE JIG"))
-	{
-		DEBUG_INFO("Set label\r\n");
-		f_setlabel("BSAFE JIG");
-	}
-
-
 	//Check firmware update
 //	check_update_value = Flash_Read_Uint (UPDATE_CHECK_ADDR);
 //	if (check_update_value == CHECK_UPDATE_VALUE)
@@ -341,9 +337,11 @@ void update_firmware (void)
 			crc_calculate += update_data [i];
 		}
 		byte_wrote += 4096;
+		DEBUG_INFO ("UPDATE : %lu / %lu \r\n", byte_wrote, size_of_firmware);
 	}
 	if (crc_calculate != crc_value_read)
 	{
+		DEBUG_ERROR ("wrong crc\r\n");
 		NVIC_SystemReset();
 	}
 	fatfs_delete_a_file (update_file); //delete file after update
@@ -381,6 +379,17 @@ void update_firmware (void)
 //		}
 //	}
 //	Flash_Erase (UPDATE_CHECK_ADDR, 1);
+}
+
+
+uint32_t sys_get_ms(void)
+{
+    return HAL_GetTick();
+}
+
+uint32_t rtt_tx(const void *buffer, uint32_t size)
+{
+    return SEGGER_RTT_Write(0, buffer, size);
 }
 /* USER CODE END 4 */
 
