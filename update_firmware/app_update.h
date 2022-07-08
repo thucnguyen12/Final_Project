@@ -15,4 +15,4 @@
 
 void poll_data_to_process_flash (uint8_t* buff, uint32_t len);
 void write_data_to_ota_memory (void);
-
+void check_version_and_update_firmware(void);

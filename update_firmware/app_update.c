@@ -185,7 +185,7 @@ void poll_data_to_process_flash (uint8_t* buff, uint32_t len)
 	}
 }
 #endif
-void check_version_and_update_firmware()
+void check_version_and_update_firmware(void)
 {
 	if (fatfs_is_file_or_folder_existed (update_file) != FILE_EXISTED)
 	{
