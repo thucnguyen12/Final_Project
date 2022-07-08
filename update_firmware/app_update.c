@@ -196,7 +196,6 @@ void poll_data_to_process_flash (uint8_t* buff, uint32_t len)
 #endif
 void check_version_and_update_firmware(void)
 {
-	void remount_flash_disk(void);
 	if (fatfs_is_file_or_folder_existed (update_file) != FILE_EXISTED)
 	{
 		DEBUG_ERROR ("NO FILE UPDATE OR SOMETHING WENT WRONG\r\n");
@@ -264,19 +263,6 @@ void remount_flash_disk(void)
 	{
 	  flash_res = f_mount(NULL, USERPath, 1);//unmount before go to app
 	}
-
-	GPIO_InitTypeDef GPIO_InitStruct_1 = {0};
-	GPIO_InitStruct_1.Pin = GPIO_PIN_11 | GPIO_PIN_12;
-	GPIO_InitStruct_1.Mode = GPIO_MODE_OUTPUT_PP;
-	GPIO_InitStruct_1.Pull = GPIO_NOPULL;
-	GPIO_InitStruct_1.Speed = GPIO_SPEED_FREQ_LOW;
-	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct_1);
-
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_RESET);
-//	MX_FATFS_Init();
-	uint32_t now = xTaskGetTickCount();
-
 	flash_res = f_mount(&USERFatFS, USERPath, 1);
 	if (flash_res != FR_OK)
 	{
@@ -298,25 +284,5 @@ void remount_flash_disk(void)
 		m_disk_is_mounted = true;
 		DEBUG_INFO("Mount flash ok\r\n");
 	}
-	// Set label
-	TCHAR label[32];
-	f_getlabel(USERPath, label, 0);
-	if (strcmp(label, "BSAFE JIG"))
-	{
-		DEBUG_INFO("Set label\r\n");
-		f_setlabel("BSAFE JIG");
-	}
-
-	vTaskDelayUntil(&now, 500); // time for usb renum
-
-//	HAL_IWDG_Refresh(&hiwdg);
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);
-
-	GPIO_InitStruct_1.Pin = GPIO_PIN_11 | GPIO_PIN_12;
-	GPIO_InitStruct_1.Mode = GPIO_MODE_INPUT;
-	GPIO_InitStruct_1.Pull = GPIO_NOPULL;
-	GPIO_InitStruct_1.Speed = GPIO_SPEED_FREQ_LOW;
-	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct_1);
 
 }

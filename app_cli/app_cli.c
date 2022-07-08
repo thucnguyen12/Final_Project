@@ -61,11 +61,13 @@ static app_cli_cb_t *m_cb;
 static int32_t system_reset (p_shell_context_t context, int32_t argc, char **argv);
 static int32_t get_build_timestamp (p_shell_context_t context, int32_t argc, char **argv);
 static int32_t update_firmware (p_shell_context_t context, int32_t argc, char **argv);
+static int32_t scan_file (p_shell_context_t context, int32_t argc, char **argv);
 static const shell_command_context_t cli_command_table[] =
 {
 		 {"reset", "\treset: Reset stm32\r\n", system_reset, 0},
 		 {"build", "\tbuild: Get firmware build timestamp\r\n", get_build_timestamp, 0},
-		 {"update","\tupdate: check and Update firmware\r\n", update_firmware, 0}
+		 {"update","\tupdate: check and Update firmware\r\n", update_firmware, 0},
+		 {"scan", "scan file in disk 0\r\n", scan_file, 0}
 };
 static shell_context_struct m_user_context;
 static app_cli_cb_t *m_cb;
@@ -112,4 +114,44 @@ static int32_t update_firmware (p_shell_context_t context, int32_t argc, char **
 {
 	check_version_and_update_firmware();
 	return 0;
+}
+FRESULT scan_files (
+   char* path        /* Start node to be scanned (***also used as work area***) */
+);
+static int32_t scan_file (p_shell_context_t context, int32_t argc, char **argv)
+{
+	char *pth = "0:/";
+	scan_files (pth);
+	return 0;
+}
+
+FRESULT scan_files (
+   char* path        /* Start node to be scanned (***also used as work area***) */
+)
+{
+    FRESULT res;
+    DIR dir;
+    UINT i;
+    static FILINFO fno;
+
+
+    res = f_opendir(&dir, path);                       /* Open the directory */
+    if (res == FR_OK) {
+        for (;;) {
+            res = f_readdir(&dir, &fno);                   /* Read a directory item */
+            if (res != FR_OK || fno.fname[0] == 0) break;  /* Break on error or end of dir */
+            if (fno.fattrib & AM_DIR) {                    /* It is a directory */
+                i = strlen(path);
+                DEBUG_INFO (" %s/%s",path[i], fno.fname);
+                res = scan_files(path);                    /* Enter the directory */
+                if (res != FR_OK) break;
+                path[i] = 0;
+            } else {                                       /* It is a file. */
+            	DEBUG_INFO("%s/%s\n", path, fno.fname);
+            }
+        }
+        f_closedir(&dir);
+    }
+
+    return res;
 }
