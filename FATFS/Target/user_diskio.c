@@ -46,6 +46,31 @@
 /* Disk status */
 static volatile DSTATUS Stat = STA_NOINIT;
 app_flash_drv_t m_spi_flash;
+static void spi_flash_delay(void *arg, uint32_t ms);
+//static QueueHandle_t m_cmd_queue;
+
+static void spi_flash_delay(void *arg, uint32_t ms)
+{
+    HAL_Delay (ms);
+}
+void storage_flash_initialize(void)
+{
+    app_drv_spi_initialize();
+    m_spi_flash.error = false;
+    m_spi_flash.spi = &hspi3;
+    m_spi_flash.callback.spi_cs = app_drv_spi_cs;
+    m_spi_flash.callback.spi_rx_buffer = app_drv_spi_receive_frame;
+    m_spi_flash.callback.spi_tx_buffer = app_drv_spi_transmit_frame;
+    m_spi_flash.callback.spi_tx_rx = app_drv_spi_transmit_receive_frame;
+    m_spi_flash.callback.spi_tx_byte = app_drv_spi_transmit_byte;
+    m_spi_flash.callback.delay_ms = spi_flash_delay;
+
+    if (app_spi_flash_initialize(&m_spi_flash) == false)
+    {
+        m_spi_flash.error = true;
+        DEBUG_ERROR("SPI flash error\r\n");
+    }
+}
 /* USER CODE END DECL */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -74,31 +99,7 @@ Diskio_drvTypeDef  USER_Driver =
 
 /* Private functions ---------------------------------------------------------*/
 
-static void spi_flash_delay(void *arg, uint32_t ms);
-//static QueueHandle_t m_cmd_queue;
 
-static void spi_flash_delay(void *arg, uint32_t ms)
-{
-    HAL_Delay (ms);
-}
-void storage_flash_initialize(void)
-{
-    app_drv_spi_initialize();
-    m_spi_flash.error = false;
-    m_spi_flash.spi = &hspi3;
-    m_spi_flash.callback.spi_cs = app_drv_spi_cs;
-    m_spi_flash.callback.spi_rx_buffer = app_drv_spi_receive_frame;
-    m_spi_flash.callback.spi_tx_buffer = app_drv_spi_transmit_frame;
-    m_spi_flash.callback.spi_tx_rx = app_drv_spi_transmit_receive_frame;
-    m_spi_flash.callback.spi_tx_byte = app_drv_spi_transmit_byte;
-    m_spi_flash.callback.delay_ms = spi_flash_delay;
-
-    if (app_spi_flash_initialize(&m_spi_flash) == false)
-    {
-        m_spi_flash.error = true;
-        DEBUG_ERROR("SPI flash error\r\n");
-    }
-}
 /**
   * @brief  Initializes a Drive
   * @param  pdrv: Physical drive number (0..)

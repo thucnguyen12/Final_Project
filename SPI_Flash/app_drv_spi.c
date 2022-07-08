@@ -56,20 +56,20 @@ void app_drv_spi_transmit_frame(void *spi, uint8_t *tx_data, uint32_t length)
     {
         HAL_SPI_Transmit_DMA(spi, tx_data, length);
         time_out_poll = 500;
-        while ((spi_done_action == false) && time_out_poll)
-        {
-        	spi_done_action = false;
-        	time_out_poll--;
-        	if (spi_done_action)
-        	{
-        		spi_done_action = false;
-        		break;
-        	}
-        }
-        if (time_out_poll == 0)
-        {
-        	Error_Handler();
-        }
+        time_out_poll = 500;
+		while ((spi_done_action == false) && time_out_poll)
+		{
+			time_out_poll--;
+			HAL_Delay (1);
+		}
+		if (time_out_poll == 0)
+		{
+			Error_Handler();
+		}
+		if (spi_done_action)
+		{
+			spi_done_action = false;
+		}
 //        xSemaphoreTake(m_sem_spi, portMAX_DELAY);
     }
 }
@@ -80,20 +80,19 @@ void app_drv_spi_receive_frame(void *spi, uint8_t *rx_data, uint32_t length)
     {
         HAL_SPI_Receive_DMA(spi, rx_data, length);
         time_out_poll = 500;
-        while ((spi_done_action == false) && time_out_poll)
-        {
-        	spi_done_action = false;
-        	time_out_poll--;
-        	if (spi_done_action)
-        	{
-        		spi_done_action = false;
-        		break;
-        	}
-        }
-        if (time_out_poll == 0)
-        {
-        	Error_Handler();
-        }
+		while ((spi_done_action == false) && time_out_poll)
+		{
+			time_out_poll--;
+			HAL_Delay (1);
+		}
+		if (time_out_poll == 0)
+		{
+			Error_Handler();
+		}
+		if (spi_done_action)
+		{
+			spi_done_action = false;
+		}
     }
 }
 
@@ -105,18 +104,17 @@ void app_drv_spi_transmit_receive_frame(void *spi, uint8_t *tx_data, uint8_t *rx
         time_out_poll = 500;
         while ((spi_done_action == false) && time_out_poll)
         {
-        	spi_done_action = false;
         	time_out_poll--;
-        	if (spi_done_action)
-        	{
-        		spi_done_action = false;
-        		break;
-        	}
+        	HAL_Delay (1);
         }
         if (time_out_poll == 0)
         {
         	Error_Handler();
         }
+        if (spi_done_action)
+		{
+			spi_done_action = false;
+		}
     }
 }
 
