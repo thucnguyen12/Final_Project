@@ -1,5 +1,14 @@
 #include "app_update.h"
 
+extern BYTE gFSWork[_MAX_SS];
+extern UINT br, bw;   // File read/write count
+extern UINT fbr, fbw; // File read/write count
+extern FRESULT flash_res;
+extern bool m_disk_is_mounted;
+
+
+
+
 typedef union
 {
     struct
@@ -19,7 +28,7 @@ ota_image_header_t  info_of_bin;
 //ota_image_header_t* info_of_bin_ptr = &info_of_bin;
 ota_image_header_t* info_current_version_ptr;
 ota_image_header_t* update_info_ptr;
-static const char *update_file = "jig_update.bin";
+static const char *update_file = "0:/jig_update.bin";
 uint8_t ringbuffer_data_to_flash [528];
 uint8_t buff_data_to_write_to_flash [512];
 bool in_flash_process = false;
@@ -187,20 +196,22 @@ void poll_data_to_process_flash (uint8_t* buff, uint32_t len)
 #endif
 void check_version_and_update_firmware(void)
 {
+	void remount_flash_disk(void);
 	if (fatfs_is_file_or_folder_existed (update_file) != FILE_EXISTED)
 	{
 		DEBUG_ERROR ("NO FILE UPDATE OR SOMETHING WENT WRONG\r\n");
 		return;
 	}
+
 	if (fatfs_read_file (update_file, info_buff, 16))
 	{
 		update_info_ptr = (ota_image_header_t*) info_buff;
 	}
 
-	uint32_t size_of_firmware = update_info_ptr->name.firmware_size - 4;
 	uint32_t info_current_version = Flash_Read_Uint (INFO_OF_FILE_ADDR);
 	uint16_t info_current_version_buff = (uint16_t)info_current_version;
 	info_current_version_ptr = (ota_image_header_t*) &info_current_version_buff;
+
 	if (memcmp (info_current_version_ptr->name.firmware_version, update_info_ptr->name.firmware_version, 3) == 0)
 	{
 		DEBUG_INFO ("VERSION STILL THE SAME, NO NEED UPDATE\r\n");
@@ -214,6 +225,7 @@ void check_version_and_update_firmware(void)
 	uint32_t total_byte_read = 0;
 	uint32_t byte_read;
 	uint8_t check_data_buffer [1024];
+
 	while (total_byte_read < (size_of_update_file - 16 - 4)) //exclude header and crc
 	{
 		memset (check_data_buffer, 0, sizeof (check_data_buffer));
@@ -236,6 +248,7 @@ void check_version_and_update_firmware(void)
 	if (crc_calculate == crc_value_read)
 	{
 		DEBUG_INFO ("CRC OK PREPARE TO RESET \r\n");
+
 		NVIC_SystemReset();
 	}
 	else
@@ -243,4 +256,67 @@ void check_version_and_update_firmware(void)
 		DEBUG_INFO ("CRC check fail, please retry again\r\n");
 		return;
 	}
+}
+
+void remount_flash_disk(void)
+{
+	if (m_disk_is_mounted)
+	{
+	  flash_res = f_mount(NULL, USERPath, 1);//unmount before go to app
+	}
+
+	GPIO_InitTypeDef GPIO_InitStruct_1 = {0};
+	GPIO_InitStruct_1.Pin = GPIO_PIN_11 | GPIO_PIN_12;
+	GPIO_InitStruct_1.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct_1.Pull = GPIO_NOPULL;
+	GPIO_InitStruct_1.Speed = GPIO_SPEED_FREQ_LOW;
+	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct_1);
+
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_RESET);
+//	MX_FATFS_Init();
+	uint32_t now = xTaskGetTickCount();
+
+	flash_res = f_mount(&USERFatFS, USERPath, 1);
+	if (flash_res != FR_OK)
+	{
+		DEBUG_WARN("Mount flash fail\r\n");
+		flash_res = f_mkfs(USERPath, FM_ANY, 0, gFSWork, sizeof gFSWork);
+		flash_res = f_mount(&USERFatFS, USERPath, 1);
+		if (flash_res == FR_OK)
+		{
+			m_disk_is_mounted = true;
+			DEBUG_INFO("format disk and mount again\r\n");
+		}
+		else
+		{
+			DEBUG_ERROR("Mount flash error\r\n");
+		}
+	}
+	else
+	{
+		m_disk_is_mounted = true;
+		DEBUG_INFO("Mount flash ok\r\n");
+	}
+	// Set label
+	TCHAR label[32];
+	f_getlabel(USERPath, label, 0);
+	if (strcmp(label, "BSAFE JIG"))
+	{
+		DEBUG_INFO("Set label\r\n");
+		f_setlabel("BSAFE JIG");
+	}
+
+	vTaskDelayUntil(&now, 500); // time for usb renum
+
+//	HAL_IWDG_Refresh(&hiwdg);
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);
+
+	GPIO_InitStruct_1.Pin = GPIO_PIN_11 | GPIO_PIN_12;
+	GPIO_InitStruct_1.Mode = GPIO_MODE_INPUT;
+	GPIO_InitStruct_1.Pull = GPIO_NOPULL;
+	GPIO_InitStruct_1.Speed = GPIO_SPEED_FREQ_LOW;
+	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct_1);
+
 }
