@@ -197,17 +197,12 @@ void check_version_and_update_firmware(void)
 		update_info_ptr = (ota_image_header_t*) info_buff;
 	}
 
-	uint32_t size_of_firmware = update_info_ptr->name.firmware_size;
+	uint32_t size_of_firmware = update_info_ptr->name.firmware_size - 4;
 	uint32_t info_current_version = Flash_Read_Uint (INFO_OF_FILE_ADDR);
 	uint16_t info_current_version_buff = (uint16_t)info_current_version;
 	info_current_version_ptr = (ota_image_header_t*) &info_current_version_buff;
 	if (memcmp (info_current_version_ptr->name.firmware_version, update_info_ptr->name.firmware_version, 3) == 0)
 	{
-//		need_update = true;
-//	}
-//	else
-//	{
-//		need_update = false;
 		DEBUG_INFO ("VERSION STILL THE SAME, NO NEED UPDATE\r\n");
 		return;
 	}
@@ -219,19 +214,24 @@ void check_version_and_update_firmware(void)
 	uint32_t total_byte_read = 0;
 	uint32_t byte_read;
 	uint8_t check_data_buffer [1024];
-	while (total_byte_read < size_of_firmware)
+	while (total_byte_read < (size_of_update_file - 16 - 4)) //exclude header and crc
 	{
 		memset (check_data_buffer, 0, sizeof (check_data_buffer));
 		byte_read = fatfs_read_file_at_pos (update_file, check_data_buffer, sizeof (check_data_buffer), 16 + total_byte_read);//skip 16 first byte
-		if (!byte_read)
+		if (byte_read < 1024)
 		{
+			for (uint16_t i = 0; i < byte_read - 4; i++)
+			{
+				crc_calculate += check_data_buffer [i];
+			}
+			total_byte_read += byte_read;
 			break;
 		}
-		for (uint16_t i = 0; i < 1024; i++)
+		for (uint16_t i = 0; i < byte_read; i++)
 		{
 			crc_calculate += check_data_buffer [i];
 		}
-		total_byte_read += 1024;
+		total_byte_read += byte_read;
 	}
 	if (crc_calculate == crc_value_read)
 	{
