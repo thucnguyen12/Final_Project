@@ -164,6 +164,12 @@ static void deleteBuffer32(uint32_t* data, uint16_t _LENGTH_)
 void Flash_Erase(uint32_t addr, uint32_t numberSectorToErase)
 { 
 	HAL_FLASH_Unlock();
+    __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_EOP);
+    __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_OPERR);
+    __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_WRPERR);
+    __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_PGAERR);
+    __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_PGPERR);
+    __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_PGSERR);
 	uint32_t SectorError;
 	FLASH_EraseInitTypeDef EraseInitStruct;
 	EraseInitStruct.Banks = 1;
@@ -174,7 +180,7 @@ void Flash_Erase(uint32_t addr, uint32_t numberSectorToErase)
 	if(HAL_FLASHEx_Erase(&EraseInitStruct, &SectorError) != HAL_OK)
 	{
 	/* Xảy ra lỗi trong khi xóa Sector sẽ cần thêm một số code để xử lý lỗi này SectorError sẽ chứa sector bị lỗi,và sau đó để biết mã lỗi trên sector này bạn cần gọi hàm 'HAL_FLASH_GetError()'*/
-	/* FLASH_ErrorTypeDef errorcode = HAL_FLASH_GetError(); */
+		uint32_t errorcode = HAL_FLASH_GetError();
 		Error_Handler();
 	}
 	HAL_FLASH_Lock();

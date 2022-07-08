@@ -80,6 +80,8 @@ UINT br, bw;   // File read/write count
 UINT fbr, fbw; // File read/write count
 FRESULT flash_res;
 bool m_disk_is_mounted = false;
+uint8_t update_data [4096];
+uint8_t sector_to_erase = 0;
 /***********************************************************************************************************************/
 /* USER CODE END PV */
 
@@ -179,7 +181,8 @@ int main(void)
 	//Check firmware update
 //	check_update_value = Flash_Read_Uint (UPDATE_CHECK_ADDR);
 //	if (check_update_value == CHECK_UPDATE_VALUE)
-	if (fatfs_is_file_or_folder_existed (update_file) == FILE_EXISTED
+//	Flash_Erase (APP_ADDR, 1);
+	if ((fatfs_is_file_or_folder_existed (update_file) == FILE_EXISTED)
 		&& m_disk_is_mounted)
 	{
 	  update_firmware ();
@@ -281,104 +284,61 @@ void update_firmware (void)
 	{
 		update_info_ptr = (ota_image_header_t*) info_buff;
 	}
-
-	uint32_t size_of_firmware = update_info_ptr->name.firmware_size  - 4;//minus 4 byte crc
-//	uint32_t word_to_write = size_of_firmware / 4; // size_of_firmware count by byte to word (4byte)
-//	uint32_t word_wrote = 0;
-//	uint32_t word_temp[1024]; //buffer contain data to write to flash
-	uint32_t byte_wrote;
-	uint8_t update_data [4096];
-	uint8_t sector_to_erase = (GetSector (APP_ADDR + size_of_firmware) - GetSector(APP_ADDR)); //sectors to erase at app addr
-	sector_to_erase += 1;
-	Flash_Erase(APP_ADDR, sector_to_erase); //Erase before write
+	DEBUG_INFO ("UPDATE: %s\r\n",update_info_ptr->name.header);
+	DEBUG_INFO ("Hardware version: %s\r\n",update_info_ptr->name.hardware_version);
+	DEBUG_INFO ("Firmware version: %s\r\n",update_info_ptr->name.firmware_version);
+	uint32_t byte_wrote = 0;
 	uint32_t size_of_update_file = fatfs_get_file_size (update_file);
+	uint32_t size_of_firmware = size_of_update_file - 16 - 4;
 	uint32_t crc_value_read;
 	uint32_t crc_calculate = 0;
+
 	fatfs_read_file_at_pos (update_file, (uint8_t*) &crc_value_read, 4, size_of_update_file - 4);
+	// skip 16byte dau va 4 byte sum crc
+	sector_to_erase = (GetSector (APP_ADDR + size_of_firmware) - GetSector(APP_ADDR)); //sectors to erase at app addr
+	sector_to_erase += 1;
+	Flash_Erase (APP_ADDR, sector_to_erase); //Erase before write
 	while (byte_wrote < size_of_firmware)
 	{
-
 //		Flash_Read_Array_32bit (word_temp, OTA_ADDR + word_wrote * 4, 1024);
 		memset (update_data, 255, sizeof (update_data));
 		uint32_t byte_read = fatfs_read_file_at_pos (update_file, update_data, sizeof (update_data), 16 + byte_wrote);
-		if (!(byte_read / 4))	// byte read = 0/ 1 /2 / 3
+		if (byte_read < sizeof (update_data))
 		{
-			if(byte_read == 0)
-			{
-				break;
-			}
-			if (Flash_Write_Array_32bit ((uint32_t*)update_data, APP_ADDR + byte_wrote, 1) != 1)
+			//when reach this, it's end of file skip 4 byte crc
+			if (Flash_Write_Array_32bit ((uint32_t*)update_data, APP_ADDR + byte_wrote, (byte_read - 4) / 4) != 1)
 			{
 				Error_Handler();
 			}
-			if (byte_read == 1)
+			for (uint32_t i = 0; i < (byte_read - 4); i++)
 			{
-				crc_calculate += update_data [0];
-				break;
+				crc_calculate += update_data [i];
 			}
-			else if (byte_read == 2)
-			{
-				crc_calculate = crc_calculate + update_data [0]+ update_data [1];
-				break;
-			}
-			else if (byte_read == 3)
-			{
-				crc_calculate = crc_calculate + update_data [0]+ update_data [1]+ update_data [2];
-				break;
-			}
-
+			DEBUG_INFO ("UPDATE DONE, CHECKING CRC\r\n");
+			break;
 		}
+
 		if (Flash_Write_Array_32bit ((uint32_t*)update_data, APP_ADDR + byte_wrote, byte_read / 4) != 1)
 		{
 			Error_Handler();
 		}
-		for (uint32_t i = 0; i < 4096; i++)
+		for (uint32_t i = 0; i < byte_read; i++)
 		{
 			crc_calculate += update_data [i];
 		}
-		byte_wrote += 4096;
-		DEBUG_INFO ("UPDATE : %lu / %lu \r\n", byte_wrote, size_of_firmware);
+		byte_wrote += byte_read;
+		DEBUG_INFO ("UPDATE : %lu / %lu byte\r\n", byte_wrote, size_of_firmware);
 	}
 	if (crc_calculate != crc_value_read)
 	{
 		DEBUG_ERROR ("wrong crc\r\n");
 		NVIC_SystemReset();
 	}
+	else
+	{
+		DEBUG_INFO ("CRC OK, PREPRARE JUMP INTO APP\r\n");
+	}
 	fatfs_delete_a_file (update_file); //delete file after update
-
-//	if (size_of_firmware % 4)
-//	{
-//		//flash the rest of file
-//		if ((size_of_firmware % 4) == 1)
-//		{
-//			uint32_t the_rest_word = Flash_Read_Uint (OTA_ADDR + word_wrote * 4);
-//			the_rest_word |= 0x00FFFFFF;
-//			if (Flash_Write_Uin32t (the_rest_word, APP_ADDR + word_wrote * 4))
-//			{
-//				Error_Handler();
-//			}
-//		}
-//		else if ((size_of_firmware % 4) == 2)
-//		{
-//			uint32_t the_rest_word = Flash_Read_Uint (OTA_ADDR + word_wrote * 4);
-//			the_rest_word |= 0x0000FFFF;
-//			if (Flash_Write_Uin32t (the_rest_word, APP_ADDR + word_wrote * 4))
-//			{
-//				Error_Handler();
-//			}
-//		}
-//		else if ((size_of_firmware % 4) == 3)
-//		{
-//			uint32_t the_rest_word = Flash_Read_Uint (OTA_ADDR + word_wrote * 4);
-//			the_rest_word |= 0x000000FF;
-//			if (Flash_Write_Uin32t (the_rest_word, APP_ADDR + word_wrote * 4))
-//			{
-//				Error_Handler();
-//			}
-//			the_rest_word = the_rest_word << 16;
-//		}
-//	}
-//	Flash_Erase (UPDATE_CHECK_ADDR, 1);
 }
 
 
