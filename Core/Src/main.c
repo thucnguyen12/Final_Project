@@ -282,7 +282,7 @@ void update_firmware (void)
 		update_info_ptr = (ota_image_header_t*) info_buff;
 	}
 
-	uint32_t size_of_firmware = update_info_ptr->name.firmware_size;
+	uint32_t size_of_firmware = update_info_ptr->name.firmware_size  - 4;//minus 4 byte crc
 //	uint32_t word_to_write = size_of_firmware / 4; // size_of_firmware count by byte to word (4byte)
 //	uint32_t word_wrote = 0;
 //	uint32_t word_temp[1024]; //buffer contain data to write to flash
