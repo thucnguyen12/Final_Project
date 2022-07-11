@@ -257,32 +257,3 @@ void check_version_and_update_firmware(void)
 	}
 }
 
-void remount_flash_disk(void)
-{
-	if (m_disk_is_mounted)
-	{
-	  flash_res = f_mount(NULL, USERPath, 1);//unmount before go to app
-	}
-	flash_res = f_mount(&USERFatFS, USERPath, 1);
-	if (flash_res != FR_OK)
-	{
-		DEBUG_WARN("Mount flash fail\r\n");
-		flash_res = f_mkfs(USERPath, FM_ANY, 0, gFSWork, sizeof gFSWork);
-		flash_res = f_mount(&USERFatFS, USERPath, 1);
-		if (flash_res == FR_OK)
-		{
-			m_disk_is_mounted = true;
-			DEBUG_INFO("format disk and mount again\r\n");
-		}
-		else
-		{
-			DEBUG_ERROR("Mount flash error\r\n");
-		}
-	}
-	else
-	{
-		m_disk_is_mounted = true;
-		DEBUG_INFO("Mount flash ok\r\n");
-	}
-
-}
