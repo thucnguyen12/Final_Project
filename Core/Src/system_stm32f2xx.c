@@ -93,7 +93,7 @@
 #else
 #define VECT_TAB_BASE_ADDRESS   FLASH_BASE      /*!< Vector Table base address field.
                                                      This value must be a multiple of 0x200. */
-#define VECT_TAB_OFFSET         0x00020000U     /*!< Vector Table base offset field. // 0x00004000U
+#define VECT_TAB_OFFSET         0x00010000U     /*!< Vector Table base offset field. // 0x00004000U
                                                      This value must be a multiple of 0x200. */
 #endif /* VECT_TAB_SRAM */
 #endif /* USER_VECT_TAB_ADDRESS */

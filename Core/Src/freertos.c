@@ -1061,18 +1061,8 @@ void testing_task(void *arg)
 	uint32_t last_tick = 0;
 	uint32_t last_vol_tick = 0;
 	//******************************* LCD INIT******************************//
-#if 1 // paralle mode
+
 	u8g2_Setup_st7920_p_128x64_f(&m_u8g2, U8G2_R2, u8x8_byte_8bit_8080mode, u8g2_gpio_8080_update_and_delay);
-#else
-#warning "do nothing"
-//	software_spi_cfg_t spi_cfg;
-//	spi_cfg.cs_out = software_spi_set_cs;
-//	spi_cfg.miso_in = software_spi_read_miso;
-//	spi_cfg.mosi_out = software_spi_set_mosi;
-//	spi_cfg.sck_out = software_spi_set_sck;
-//	software_spi_inititalize(&spi_cfg);
-//	u8g2_Setup_st7920_s_128x64_f(&m_u8g2, U8G2_R0, u8x8_byte_3wire_sw_spi, u8g2_gpio_3w_spi_update_and_delay);
-#endif
 	u8g2_InitDisplay(&m_u8g2);	   // send init sequence to the display, display is in sleep mode after this,
 	u8g2_SetPowerSave(&m_u8g2, 0); // wake up display
 	u8g2_ClearBuffer(&m_u8g2);
