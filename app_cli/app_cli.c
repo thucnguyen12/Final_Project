@@ -112,7 +112,8 @@ static int32_t get_build_timestamp (p_shell_context_t context, int32_t argc, cha
 
 static int32_t update_firmware (p_shell_context_t context, int32_t argc, char **argv)
 {
-	check_version_and_update_firmware();
+//	check_version_and_update_firmware();
+	DEBUG_INFO ("NO LONGER SUPPORT UPDATE CMD TYPE reset TO CHECK AND UP DATE\r\n");
 	return 0;
 }
 FRESULT scan_files (
