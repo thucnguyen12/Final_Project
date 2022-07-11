@@ -53,11 +53,8 @@ typedef union
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define APP_ADDR 0x08020000 //sector 6
-//#define OTA_ADDR 0x08080000 //sector 8
-//#define UPDATE_CHECK_ADDR 0x08008000 //sector 2
-//#define CHECK_UPDATE_VALUE 0xAAAAAAAA
-//#define SIZE_OF_FIRM_ADDR 0x0800C000 // sector 3
+#define APP_TEST_ADDR 0x08020000 //sector 6
+
 
 /* USER CODE END PD */
 
@@ -70,7 +67,7 @@ typedef union
 
 /* USER CODE BEGIN PV */
 uint32_t check_update_value;
-static const char *update_file = "jig_update.bin";
+static const char *jig_test_update_file = "jig_update.bin";
 //ota_image_header_t update_info;
 ota_image_header_t* update_info_ptr;
 uint8_t info_buff[16];
@@ -97,7 +94,7 @@ uint32_t rtt_tx(const void *buffer, uint32_t size);
 /* USER CODE BEGIN 0 */
 typedef void (*jump_func)(void);
 jump_func jump_to_app;
-void update_firmware (void);
+void update_firmware (uint32_t addr_to_update, const char* update_file);
 
 /* USER CODE END 0 */
 
@@ -137,25 +134,6 @@ int main(void)
   //init debug app
   app_debug_init(sys_get_ms, NULL);
   app_debug_register_callback_print(rtt_tx);
-#if 0
-  //test flash
-  uint32_t test_temp[12] = {1,2,3,4,5,6,7,8,9,1,2,3};
-  uint32_t word_wrote = 0;
-  uint32_t word_to_write = 12;
-  uint32_t word_temp[3];
-  Flash_Erase (UPDATE_CHECK_ADDR, 1);
-  Flash_Erase (APP_ADDR, 1);
-  Flash_Write_Array_32bit (test_temp, UPDATE_CHECK_ADDR, 12);
-	while (word_wrote < word_to_write)
-	{
-		Flash_Read_Array_32bit (word_temp, UPDATE_CHECK_ADDR + word_wrote * 4, 3);
-		if (Flash_Write_Array_32bit (word_temp, APP_ADDR + word_wrote * 4, 3) != 1)
-		{
-			Error_Handler();
-		}
-		word_wrote += 3;
-	}
-#endif
 	/// mount flash to use fs
 	flash_res = f_mount(&USERFatFS, USERPath, 1);
 	if (flash_res != FR_OK)
@@ -178,14 +156,10 @@ int main(void)
 		m_disk_is_mounted = true;
 		DEBUG_INFO("Mount flash ok\r\n");
 	}
-	//Check firmware update
-//	check_update_value = Flash_Read_Uint (UPDATE_CHECK_ADDR);
-//	if (check_update_value == CHECK_UPDATE_VALUE)
-//	Flash_Erase (APP_ADDR, 1);
-	if ((fatfs_is_file_or_folder_existed (update_file) == FILE_EXISTED)
+	if ((fatfs_is_file_or_folder_existed (jig_test_update_file) == FILE_EXISTED)
 		&& m_disk_is_mounted)
 	{
-	  update_firmware ();
+	  update_firmware (APP_TEST_ADDR, jig_test_update_file);
 	  flash_res = f_mount(NULL, USERPath, 1);//unmount before go to app
 	  HAL_RCC_DeInit();
 	  SysTick->CTRL = 0;
@@ -197,8 +171,8 @@ int main(void)
 	  SCB_SHCSR_BUSFAULTENA_Msk | \
 	  SCB_SHCSR_MEMFAULTENA_Msk ) ;
 	  __disable_irq();
-	  jump_to_app = (jump_func)(*(volatile unsigned int *)(APP_ADDR + 4));
-	  __set_MSP(*(volatile unsigned int*)APP_ADDR);
+	  jump_to_app = (jump_func)(*(volatile unsigned int *)(APP_TEST_ADDR + 4));
+	  __set_MSP(*(volatile unsigned int*)APP_TEST_ADDR);
 	  jump_to_app();
 	  while (1);
 	}
@@ -218,8 +192,8 @@ int main(void)
 	  SCB_SHCSR_BUSFAULTENA_Msk | \
 	  SCB_SHCSR_MEMFAULTENA_Msk ) ;
 	  __disable_irq();
-	  jump_to_app = (jump_func)(*(volatile unsigned int *)(APP_ADDR + 4));
-	  __set_MSP(*(volatile unsigned int*)APP_ADDR);
+	  jump_to_app = (jump_func)(*(volatile unsigned int *)(APP_TEST_ADDR + 4));
+	  __set_MSP(*(volatile unsigned int*)APP_TEST_ADDR);
 	  jump_to_app();
 	  while (1);
 	}
@@ -277,7 +251,7 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-void update_firmware (void)
+void update_firmware (uint32_t addr_to_update, const char* update_file)
 {
 
 	if (fatfs_read_file (update_file, info_buff, 16))
@@ -295,9 +269,9 @@ void update_firmware (void)
 
 	fatfs_read_file_at_pos (update_file, (uint8_t*) &crc_value_read, 4, size_of_update_file - 4);
 	// skip 16byte dau va 4 byte sum crc
-	sector_to_erase = (GetSector (APP_ADDR + size_of_firmware) - GetSector(APP_ADDR)); //sectors to erase at app addr
+	sector_to_erase = (GetSector (addr_to_update + size_of_firmware) - GetSector(addr_to_update)); //sectors to erase at app addr
 	sector_to_erase += 1;
-	Flash_Erase (APP_ADDR, sector_to_erase); //Erase before write
+	Flash_Erase (addr_to_update, sector_to_erase); //Erase before write
 	while (byte_wrote < size_of_firmware)
 	{
 //		Flash_Read_Array_32bit (word_temp, OTA_ADDR + word_wrote * 4, 1024);
@@ -306,7 +280,7 @@ void update_firmware (void)
 		if (byte_read < sizeof (update_data))
 		{
 			//when reach this, it's end of file skip 4 byte crc
-			if (Flash_Write_Array_32bit ((uint32_t*)update_data, APP_ADDR + byte_wrote, (byte_read - 4) / 4) != 1)
+			if (Flash_Write_Array_32bit ((uint32_t*)update_data, addr_to_update + byte_wrote, (byte_read - 4) / 4) != 1)
 			{
 				Error_Handler();
 			}
@@ -315,10 +289,11 @@ void update_firmware (void)
 				crc_calculate += update_data [i];
 			}
 			DEBUG_INFO ("UPDATE DONE, CHECKING CRC\r\n");
+			HAL_Delay (1000);
 			break;
 		}
 
-		if (Flash_Write_Array_32bit ((uint32_t*)update_data, APP_ADDR + byte_wrote, byte_read / 4) != 1)
+		if (Flash_Write_Array_32bit ((uint32_t*)update_data, addr_to_update + byte_wrote, byte_read / 4) != 1)
 		{
 			Error_Handler();
 		}
