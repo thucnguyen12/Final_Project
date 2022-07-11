@@ -180,7 +180,7 @@ void Flash_Erase(uint32_t addr, uint32_t numberSectorToErase)
 	if(HAL_FLASHEx_Erase(&EraseInitStruct, &SectorError) != HAL_OK)
 	{
 	/* Xảy ra lỗi trong khi xóa Sector sẽ cần thêm một số code để xử lý lỗi này SectorError sẽ chứa sector bị lỗi,và sau đó để biết mã lỗi trên sector này bạn cần gọi hàm 'HAL_FLASH_GetError()'*/
-		uint32_t errorcode = HAL_FLASH_GetError();
+	//	uint32_t errorcode = HAL_FLASH_GetError();
 		Error_Handler();
 	}
 	HAL_FLASH_Lock();

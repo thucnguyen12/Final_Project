@@ -53,7 +53,7 @@ typedef union
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define APP_TEST_ADDR 0x08020000 //sector 6
+#define APP_TEST_ADDR 0x08010000 //sector 6
 
 
 /* USER CODE END PD */
