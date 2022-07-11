@@ -50,6 +50,7 @@ int32_t fatfs_read_file_at_pos(const char *file, uint8_t *data, uint32_t size, u
 int32_t fatfs_get_file_size(const char *file);
 void fatfs_delete_a_file (const char * file);
 fatfs_file_info_t fatfs_is_file_or_folder_existed (const char* file);
+uint32_t fatfs_write_to_a_file_at_pos (const char* file, char* buff, uint32_t size, uint32_t pos);
 /* USER CODE END Prototypes */
 #ifdef __cplusplus
 }

@@ -68,9 +68,18 @@ typedef union
 /* USER CODE BEGIN PV */
 uint32_t check_update_value;
 static const char *jig_test_update_file = "jig_update.bin";
+static const char *version_info_file = "current_version.txt";
+/*
+ * {test:001,
+ *  load:001
+ * }
+ * */
 //ota_image_header_t update_info;
 ota_image_header_t* update_info_ptr;
 uint8_t info_buff[16];
+ota_image_header_t* current_info_ptr;
+char version_info_buff[64];
+
 /*************************** 	  FLASH DISK VARIABLE        *************************************************************/
 BYTE gFSWork[_MAX_SS];
 UINT br, bw;   // File read/write count
@@ -258,9 +267,28 @@ void update_firmware (uint32_t addr_to_update, const char* update_file)
 	{
 		update_info_ptr = (ota_image_header_t*) info_buff;
 	}
-	DEBUG_INFO ("UPDATE: %s\r\n",update_info_ptr->name.header);
-	DEBUG_INFO ("Hardware version: %s\r\n",update_info_ptr->name.hardware_version);
-	DEBUG_INFO ("Firmware version: %s\r\n",update_info_ptr->name.firmware_version);
+	DEBUG_INFO ("UPDATE: %.*s\r\n", 3, update_info_ptr->name.header);
+	DEBUG_INFO ("Hardware version: %.*s\r\n", 3, update_info_ptr->name.hardware_version);
+	DEBUG_INFO ("Firmware version: %.*s\r\n", 3, update_info_ptr->name.firmware_version);
+	if (fatfs_read_file (version_info_file, (uint8_t *)version_info_buff, 16) != 0)
+	{
+		DEBUG_INFO ("ERROR NOT FOUND VERSION INFO \r\n");
+	}
+	else
+	{
+		char * ptr = strstr (version_info_buff, "test:");
+		if (memcmp (ptr, update_info_ptr->name.firmware_version, 3) == 0)
+		{
+			DEBUG_INFO ("VERSION STILL THE SAME \r\n");
+			return;
+		}
+		else
+		{
+			char version_buff[3];
+			memcpy (version_buff, update_info_ptr->name.firmware_version, 3);
+			fatfs_write_to_a_file_at_pos (version_info_file, version_buff, 3, strlen ("test:"));//write new version
+		}
+	}
 	uint32_t byte_wrote = 0;
 	uint32_t size_of_update_file = fatfs_get_file_size (update_file);
 	uint32_t size_of_firmware = size_of_update_file - 16 - 4;

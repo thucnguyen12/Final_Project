@@ -196,4 +196,43 @@ fatfs_file_info_t fatfs_is_file_or_folder_existed (const char* file)
 		return FILE_ERROR;
 	}
 }
+
+uint32_t fatfs_write_to_a_file_at_pos (const char* file, char* buff, uint32_t size, uint32_t pos)
+{
+	UINT byte_write = 0;
+	fresult = f_open(&USERFile, file, FA_CREATE_ALWAYS);
+	if (fresult != FR_OK)
+	{
+		DEBUG_ERROR("Open file %s failed %d\r\n", file, fresult);
+		goto end;
+	}
+	f_close(&USERFile);
+	fresult = f_open(&USERFile, file, 	 FA_WRITE);
+	if (fresult != FR_OK)
+	{
+		DEBUG_ERROR("Open file %s failed %d\r\n", file, fresult);
+		goto end;
+	}
+
+	fresult = f_lseek(&USERFile, (DWORD)pos);
+	if (FR_OK != fresult)
+	{
+		DEBUG_ERROR(" Seek file %s at 0 failed\r\n", file);
+		f_close(&USERFile);
+		goto end;
+	}
+
+	fresult = f_write (&USERFile, buff, size, &byte_write);
+	if (fresult != FR_OK)
+	{
+		DEBUG_INFO ("ERROR %d", fresult);
+		DEBUG_ERROR ("WRITE FILE %s FAIL", file);
+		f_close(&USERFile);
+		goto end;
+
+	}
+	f_close(&USERFile);
+	end:
+	    return byte_write;
+}
 /* USER CODE END Application */
