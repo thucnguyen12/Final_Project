@@ -61,12 +61,14 @@ static app_cli_cb_t *m_cb;
 static int32_t system_reset (p_shell_context_t context, int32_t argc, char **argv);
 static int32_t get_build_timestamp (p_shell_context_t context, int32_t argc, char **argv);
 static int32_t update_firmware (p_shell_context_t context, int32_t argc, char **argv);
+static int32_t check_vesion (p_shell_context_t context, int32_t argc, char **argv);
 static int32_t scan_file (p_shell_context_t context, int32_t argc, char **argv);
 static const shell_command_context_t cli_command_table[] =
 {
 		 {"reset", "\treset: Reset stm32\r\n", system_reset, 0},
 		 {"build", "\tbuild: Get firmware build timestamp\r\n", get_build_timestamp, 0},
 		 {"update","\tupdate: check and Update firmware\r\n", update_firmware, 0},
+		 {"checkVersion","\tcheckVersion: check version of hard and firmware\r\n", check_vesion, 0},
 		 {"scan", "scan file in disk 0\r\n", scan_file, 0}
 };
 static shell_context_struct m_user_context;
@@ -113,7 +115,7 @@ static int32_t get_build_timestamp (p_shell_context_t context, int32_t argc, cha
 static int32_t update_firmware (p_shell_context_t context, int32_t argc, char **argv)
 {
 //	check_version_and_update_firmware();
-	DEBUG_INFO ("NO LONGER SUPPORT UPDATE CMD TYPE reset TO CHECK AND UP DATE\r\n");
+	DEBUG_INFO ("NO LONGER SUPPORT UPDATE CMD TYPE reset TO CHECK AND UPDATE\r\n");
 	return 0;
 }
 FRESULT scan_files (
@@ -125,7 +127,11 @@ static int32_t scan_file (p_shell_context_t context, int32_t argc, char **argv)
 	scan_files (pth);
 	return 0;
 }
-
+static int32_t check_vesion (p_shell_context_t context, int32_t argc, char **argv)
+{
+	send_version_info();
+	return 0;
+}
 FRESULT scan_files (
    char* path        /* Start node to be scanned (***also used as work area***) */
 )
